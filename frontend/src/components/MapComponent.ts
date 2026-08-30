@@ -19,6 +19,7 @@ const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 })
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
+  private results = L.layerGroup();
   private map!: L.Map;
   private api = inject(ReachableService);
   stops = signal<ReachableStop[]>([]);
