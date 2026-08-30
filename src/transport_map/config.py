@@ -1,0 +1,6 @@
+STOPS_PATH = "fakeStops.csv"
+STOP_TIMES_PATH = "fakeStopTimes.csv"
+
+WALK_SPEED = 1.33
+MAX_WALK_METERS = 500
+MAX_WALK_SECONDS = 600
