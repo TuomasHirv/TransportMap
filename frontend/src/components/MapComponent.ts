@@ -1,6 +1,7 @@
-import { Component, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
+import { Component, AfterViewInit, ElementRef, ViewChild, inject, signal } from '@angular/core';
 import * as L from 'leaflet';
 
+import { ReachableService, type ReachableStop } from '../app/services/reachable.service';
 const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 
 @Component({
@@ -19,6 +20,9 @@ const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
   private map!: L.Map;
+  private api = inject(ReachableService);
+  stops = signal<ReachableStop[]>([]);
+  loading = signal(false);
 
   ngAfterViewInit(): void {
     this.map = L.map(this.mapEl.nativeElement, {
@@ -34,7 +38,17 @@ export class MapComponent implements AfterViewInit {
     }).addTo(this.map);
     this.map.fitBounds(HSL_BOUNDS);
     this.map.on('click', (e: L.LeafletMouseEvent) => {
-      console.log(e.latlng.lat, e.latlng.lng);
+      this.loading.set(true);
+      this.api.query(e.latlng.lat, e.latlng.lng, 8 * 3600, 1800).subscribe({
+        next: (stops) => {
+          this.stops.set(stops);
+          this.loading.set(false);
+        },
+        error: (err) => {
+          console.error(err);
+          this.loading.set(false);
+        },
+      });
     });
   }
 }

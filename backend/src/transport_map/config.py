@@ -1,5 +1,5 @@
-STOPS_PATH = "fakeStops.csv"
-STOP_TIMES_PATH = "fakeStopTimes.csv"
+STOPS_PATH = "stops.csv"
+STOP_TIMES_PATH = "stop_times.csv"
 
 WALK_SPEED = 1.33
 MAX_WALK_METERS = 500

@@ -3,9 +3,7 @@ from collections import defaultdict
 from itertools import groupby
 
 from transport_map.models import Timetable
-
-stop_times_file_path = "fakeStopTimes.csv"
-
+from .config import STOP_TIMES_PATH
 
 
 def parse_time(unprocessed_time):
@@ -65,7 +63,7 @@ def finalize_timetable(patterns):
 
 def create_timetable ():
     """Reads the given file and returns the patterns of trips"""
-    with open(stop_times_file_path, newline="", encoding="utf-8-sig") as fh:
+    with open(STOP_TIMES_PATH, newline="", encoding="utf-8-sig") as fh:
         reader = csv.reader(fh)
         cols = {name: i for i, name in enumerate(next(reader))}
 
