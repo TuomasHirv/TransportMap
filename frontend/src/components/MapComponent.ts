@@ -2,6 +2,7 @@ import { Component, AfterViewInit, ElementRef, ViewChild, inject, signal } from 
 import * as L from 'leaflet';
 
 import { ReachableService, type ReachableStop } from '../app/services/reachable.service';
+import { SettingsService } from '../app/services/settings.service';
 const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 
 @Component({
@@ -20,8 +21,17 @@ const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
   private results = L.layerGroup();
+  private originMarker?: L.CircleMarker;
+  private static RAMP = ['#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#104281'];
+
+  private colourFor(travelSecs: number, budget: number): string {
+    const band = Math.min(4, Math.floor((travelSecs / budget) * 5));
+    return MapComponent.RAMP[band];
+  }
+
   private map!: L.Map;
   private api = inject(ReachableService);
+  private s = inject(SettingsService);
   stops = signal<ReachableStop[]>([]);
   loading = signal(false);
 
@@ -37,12 +47,14 @@ export class MapComponent implements AfterViewInit {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(this.map);
+    this.results.addTo(this.map);
     this.map.fitBounds(HSL_BOUNDS);
     this.map.on('click', (e: L.LeafletMouseEvent) => {
       this.loading.set(true);
-      this.api.query(e.latlng.lat, e.latlng.lng, 8 * 3600, 1800).subscribe({
+      this.api.query(e.latlng.lat, e.latlng.lng, this.s.at(), this.s.duration()).subscribe({
         next: (stops) => {
           this.stops.set(stops);
+          this.draw(stops, e.latlng, this.s.duration());
           this.loading.set(false);
         },
         error: (err) => {
@@ -51,5 +63,30 @@ export class MapComponent implements AfterViewInit {
         },
       });
     });
+  }
+
+  private draw(stops: ReachableStop[], origin: L.LatLng, budget: number): void {
+    this.results.clearLayers();
+
+    for (const s of stops) {
+      const travel = budget - s.seconds_left;
+      L.circleMarker([s.lat, s.lon], {
+        radius: 3,
+        fillColor: this.colourFor(travel, budget),
+        fillOpacity: 0.9,
+        weight: 2,
+      })
+        .bindTooltip(`${s.stop_id} — ${Math.round(travel / 60)} min`)
+        .addTo(this.results);
+    }
+
+    this.originMarker?.remove();
+    this.originMarker = L.circleMarker(origin, {
+      radius: 7,
+      fillColor: '#e34948',
+      fillOpacity: 1,
+      color: '#fff',
+      weight: 3,
+    }).addTo(this.map);
   }
 }
