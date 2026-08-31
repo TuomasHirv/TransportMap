@@ -89,7 +89,7 @@ export class MapComponent implements AfterViewInit {
         fillOpacity: 0.9,
         weight: 2,
       })
-        .bindTooltip(`${s.stop_id} — ${Math.round(travel / 60)} min`)
+        .bindTooltip(`${s.stop_name} — ${Math.round(travel / 60)} min`)
         .addTo(this.results);
     }
 

@@ -42,6 +42,8 @@ class Timetable:
         self.transfer_time: dict[str, int] = defaultdict(int)
         # Coordinates for every stop: {(stop_id): (latitude, longitude)}
         self.coords: dict[str] = {}
+        # Stop names by stop_id.
+        self.stop_names: dict[str] = {}
  
     # -- construction ------------------------------------------------------
  

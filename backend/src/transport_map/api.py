@@ -49,7 +49,7 @@ def reachable_endpoint(tt: Timetabledep, lat: float, lon: float, at: int, budget
 
     result = reachable(tt, (lat, lon), at, budget)
     return [
-        {"stop_id": s, "lat": tt.coords[s][0], "lon": tt.coords[s][1],
+        {"stop_name": name, "lat": tt.coords[s][0], "lon": tt.coords[s][1],
          "seconds_left": left, "arrival": at + budget - left}
-        for s, left in result.items()
+        for s, left, name in result
     ]

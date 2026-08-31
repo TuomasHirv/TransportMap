@@ -3,7 +3,6 @@ from .parse_date import service_id_for_day, trips_from_services
 from .parse_routes import create_timetable
 
 
-from .config import STOPS_PATH
 
 import logging, time
 
@@ -16,7 +15,7 @@ def build_data_model(day_type = "saturday"):
     accepted_trips = trips_from_services(service_ids)
     log.info("Service ids: %s. Accepted trips: %s", len(service_ids), len(accepted_trips))
     tt = create_timetable(accepted_trips)
-    parents = load_stops(tt, STOPS_PATH)
+    parents = load_stops(tt)
     build_footpaths(tt, parents)
 
     n_trips = sum(len(r.trips) for r in tt.routes.values())

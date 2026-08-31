@@ -3,15 +3,17 @@ from math import cos, hypot, radians
 
 from .config import MAX_WALK_METERS, MAX_WALK_SECONDS, WALK_SPEED
 
+from .config import STOPS_PATH
 
-def load_stops(tt, path):
+def load_stops(tt):
     """-> {stop_id: (lat, lon)}, {stop_id: parent_station}, skipping stations."""
     parents = {}
-    with open(path, newline="", encoding="utf-8-sig") as fh:
+    with open(STOPS_PATH, newline="", encoding="utf-8-sig") as fh:
         for r in csv.DictReader(fh):
             sid = r["stop_id"].strip()
             if r["location_type"].strip() == "1":
                 continue                       # a station, not a boarding point
+            tt.stop_names[sid] = r["stop_name"]
             tt.coords[sid] = (float(r["stop_lat"]), float(r["stop_lon"]))
             parent = r.get("parent_station", "").strip()
             if parent:

@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface ReachableStop {
-  stop_id: string;
+  stop_name: string;
   lat: number;
   lon: number;
   seconds_left: number;

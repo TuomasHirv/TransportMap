@@ -72,4 +72,5 @@ def reachable(tt, source, start_time, budget, max_rounds=8):
         if not marked:
             break
     log.info("reachable finished in %.2fs", time.perf_counter() - t0)
-    return {p: horizon - a for p, a in best.items()}
+
+    return {(p, horizon - a, tt.stop_names[p]) for p, a in best.items()}
