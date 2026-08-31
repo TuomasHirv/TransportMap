@@ -7,11 +7,22 @@ import { SettingsService } from '../../services/settings.service';
   styles: ``,
   template: ` <div class="flex flex-col gap-4">
     <p class="flex flex-col gap-1 text-xl font-medium text-slate-700">Settings</p>
-    <label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
-      Day
-      <input type="date" [value]="s.day()" (change)="s.day.set($any($event.target).value)" />
-    </label>
+    <fieldset class="flex flex-col gap-1">
+      <legend class="text-sm font-medium text-slate-700 mb-1">Day</legend>
 
+      @for (d of days; track d) {
+        <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+          <input
+            type="radio"
+            name="days"
+            class="accent-sky-600"
+            [checked]="s.days() === d"
+            (change)="s.days.set(d)"
+          />
+          <span class="capitalize">{{ d }}</span>
+        </label>
+      }
+    </fieldset>
     <label class="flex flex-col gap-1 text-sm font-medium text-slate-700"
       >Time
       <input type="time" [value]="s.time()" (change)="s.time.set($any($event.target).value)" />
@@ -33,4 +44,5 @@ import { SettingsService } from '../../services/settings.service';
 })
 export class Settings {
   s = inject(SettingsService);
+  days = ['weekday', 'saturday', 'sunday'] as const;
 }

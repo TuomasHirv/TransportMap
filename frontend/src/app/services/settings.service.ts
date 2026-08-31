@@ -2,7 +2,7 @@ import { Injectable, signal, computed } from '@angular/core';
 
 @Injectable({ providedIn: 'root' })
 export class SettingsService {
-  day = signal('2026-09-01');
+  days = signal<'weekday' | 'saturday' | 'sunday'>('weekday');
   time = signal('08:00');
   duration = signal(1800);
 

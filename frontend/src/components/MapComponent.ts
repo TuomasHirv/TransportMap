@@ -1,4 +1,12 @@
-import { Component, AfterViewInit, ElementRef, ViewChild, inject, signal } from '@angular/core';
+import {
+  Component,
+  AfterViewInit,
+  ElementRef,
+  ViewChild,
+  inject,
+  signal,
+  effect,
+} from '@angular/core';
 import * as L from 'leaflet';
 
 import { ReachableService, type ReachableStop } from '../app/services/reachable.service';
@@ -20,8 +28,10 @@ const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 })
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
+  private s = inject(SettingsService);
   private results = L.layerGroup();
   private originMarker?: L.CircleMarker;
+  private origin = signal<L.LatLng | null>(null);
   private static RAMP = ['#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#104281'];
 
   private colourFor(travelSecs: number, budget: number): string {
@@ -31,7 +41,21 @@ export class MapComponent implements AfterViewInit {
 
   private map!: L.Map;
   private api = inject(ReachableService);
-  private s = inject(SettingsService);
+  constructor() {
+    effect(() => {
+      const origin = this.origin();
+      const at = this.s.at();
+      const budget = this.s.duration();
+      const day = this.s.days();
+      if (!day) return;
+      if (!origin) return;
+
+      this.api
+        .query(origin.lat, origin.lng, at, budget, day)
+        .subscribe({ next: (stops) => this.draw(stops, origin, budget) });
+    });
+  }
+
   stops = signal<ReachableStop[]>([]);
   loading = signal(false);
 
@@ -50,18 +74,7 @@ export class MapComponent implements AfterViewInit {
     this.results.addTo(this.map);
     this.map.fitBounds(HSL_BOUNDS);
     this.map.on('click', (e: L.LeafletMouseEvent) => {
-      this.loading.set(true);
-      this.api.query(e.latlng.lat, e.latlng.lng, this.s.at(), this.s.duration()).subscribe({
-        next: (stops) => {
-          this.stops.set(stops);
-          this.draw(stops, e.latlng, this.s.duration());
-          this.loading.set(false);
-        },
-        error: (err) => {
-          console.error(err);
-          this.loading.set(false);
-        },
-      });
+      this.map.on('click', (e) => this.origin.set(e.latlng));
     });
   }
 

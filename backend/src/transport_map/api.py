@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, Literal
 import logging
 
 from fastapi import Depends, FastAPI, HTTPException
@@ -11,23 +11,29 @@ from .raptor import reachable
 from .build_datamodel import build_data_model
 
 from .config import STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH,TRIPS_PATH
+
+DayType = Literal["weekday", "saturday", "sunday"]
+TIMETABLES: dict[str, Timetable] = {}
+
 TT = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global TT
-    log.info("Building data model from %s %s %s %s", STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH, TRIPS_PATH)
-    TT = build_data_model()
-    log.info("loaded %d stops, %d routes", len(TT.stops), len(TT.routes))
+    log.info("Building datamodel from %s %s %s %s", STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH, TRIPS_PATH)
+    for day in ["weekday", "saturday", "sunday"]:
+        log.info("Building for: %s", day)
+        TIMETABLES[day] = build_data_model(day)
+        log.info("loaded %d stops, %d routes", len(TIMETABLES[day].stops), len(TIMETABLES[day].routes))
     yield
 
 app = FastAPI(title="Transport Map", lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
 
-def get_timetable():
-    if TT is None:
-        raise HTTPException(503, "timetable not loaded")
-    return TT
+def get_timetable(day: DayType = "weekday") -> Timetable:
+    if not TIMETABLES:
+        raise HTTPException(503, "timetables not loaded")
+    return TIMETABLES[day]
 
 Timetabledep = Annotated[Timetable, Depends(get_timetable)]
 

@@ -1,7 +1,6 @@
-from transport_map.parse_footpaths import build_footpaths, close_footpaths, load_stops, metres
-from transport_map.parse_routes import create_timetable
+from transport_map.parse_footpaths import metres
 
-from .config import MAX_WALK_METERS, WALK_SPEED, STOPS_PATH, STOP_TIMES_PATH
+from .config import MAX_WALK_METERS, WALK_SPEED
 
 import logging, time
 

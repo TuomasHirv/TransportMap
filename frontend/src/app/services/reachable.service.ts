@@ -14,9 +14,15 @@ export interface ReachableStop {
 export class ReachableService {
   private http = inject(HttpClient);
 
-  query(lat: number, lon: number, at: number, budget: number): Observable<ReachableStop[]> {
+  query(
+    lat: number,
+    lon: number,
+    at: number,
+    budget: number,
+    day: string,
+  ): Observable<ReachableStop[]> {
     return this.http.get<ReachableStop[]>('/api/reachable', {
-      params: { lat, lon, at, budget },
+      params: { lat, lon, at, budget, day },
     });
   }
 }
