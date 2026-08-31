@@ -1,12 +1,8 @@
 import csv
-from collections import defaultdict
+import logging
 from itertools import groupby
 
-from transport_map.models import Timetable
 from .config import STOP_TIMES_PATH
-
-
-import logging
 
 log = logging.getLogger("uvicorn.error")
 
@@ -31,45 +27,7 @@ def parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips):
     log.info("%s amount of trips", len(trips))
     return trips
 
-def build_patterns(trips):
-    patterns = defaultdict(list)
-    for trip_id, events in trips:
-        seq = tuple(e[2] for e in events)
-        stoptimes = [(a, d) for a, d, _ in events]
-        patterns[seq].append((trip_id, stoptimes))
-    return patterns
-
-def split_overtaking(n_stops, trips):
-    """Partition a pattern's trips into maximal non-overtaking groups."""
-    trips = sorted(trips, key=lambda t: t[1][0][1])
-    groups = []
-    for trip_id, st in trips:
-        for g in groups:
-            last = g[-1][1]
-            if all(last[i][0] <= st[i][0] and last[i][1] <= st[i][1]
-                   for i in range(n_stops)):
-                g.append((trip_id, st))
-                break
-        else:
-            groups.append([(trip_id, st)])
-    return groups
-
-
-def finalize_timetable(patterns):
-    tt = Timetable()
-    trip_index = {}
-    n = 0
-    for seq, pattern_trips in patterns.items():
-        for group in split_overtaking(len(seq), pattern_trips):
-            rid = f"r{n}"
-            n += 1
-            tt.add_route(rid, seq, [st for _, st in group])
-            for i, (trip_id, _) in enumerate(group):
-                trip_index[(rid, i)] = trip_id
-    tt.finalize()
-    return tt
-
-def create_timetable(accepted_trips):
+def parse_routes_to_trips(accepted_trips):
     """Reads the given file and returns the patterns of trips"""
     with open(STOP_TIMES_PATH, newline="", encoding="utf-8-sig") as fh:
         reader = csv.reader(fh)
@@ -82,10 +40,6 @@ def create_timetable(accepted_trips):
             "trip_id"))
 
         trips = parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips)
-        patterns = build_patterns(trips)
-        tt = finalize_timetable(patterns)
-        return tt
-
-
+        return trips
 
 

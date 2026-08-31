@@ -29,7 +29,15 @@ class Route:
         t = bisect_left(deps, time)
         return t if t < len(deps) else None
  
- 
+class Geography:
+    """Holds date-independent items like: stops, names, coordinates and footpaths"""
+    def __init__(self) -> None:
+        self.stops: set[str] = set()
+        self.coords: dict[str] = {}
+        self.stop_names: dict[str] = {}
+        self.footpaths: dict[str, list[tuple[str, int]]] = defaultdict(list)
+
+
 class Timetable:
     def __init__(self) -> None:
         self.routes: dict[str, Route] = {}

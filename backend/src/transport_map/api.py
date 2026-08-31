@@ -1,30 +1,37 @@
+import logging
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
-import logging
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-log = logging.getLogger("uvicorn.error")
 
+from .build_datamodel import build_data_model
+from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH
 from .models import Timetable
 from .raptor import reachable
-from .build_datamodel import build_data_model
 
-from .config import STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH,TRIPS_PATH
+log = logging.getLogger("uvicorn.error")
+
 
 DayType = Literal["weekday", "saturday", "sunday"]
 TIMETABLES: dict[str, Timetable] = {}
 
-TT = None
+Geography = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global TT
-    log.info("Building datamodel from %s %s %s %s", STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH, TRIPS_PATH)
+    global Geography
+    log.info("Building datamodel from %s %s %s %s", 
+             STOPS_PATH, 
+             STOP_TIMES_PATH, 
+             CALENDAR_PATH, 
+             TRIPS_PATH)
     for day in ["weekday", "saturday", "sunday"]:
         log.info("Building for: %s", day)
         TIMETABLES[day] = build_data_model(day)
-        log.info("loaded %d stops, %d routes", len(TIMETABLES[day].stops), len(TIMETABLES[day].routes))
+        log.info("loaded %d stops, %d routes", 
+                 len(TIMETABLES[day].stops), 
+                 len(TIMETABLES[day].routes))
     yield
 
 app = FastAPI(title="Transport Map", lifespan=lifespan)

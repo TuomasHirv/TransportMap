@@ -1,7 +1,7 @@
-from datetime import date
 import csv
-from .config import CALENDAR_PATH, TRIPS_PATH
+from datetime import date
 
+from .config import CALENDAR_PATH, TRIPS_PATH
 
 DAY_FLAG = {"weekday": "wednesday", "saturday": "saturday", "sunday": "sunday"}
 
@@ -15,7 +15,7 @@ def service_id_for_day(day_type, on=None):
             if r[filter].strip() != "1":
                 continue
             if not (r["start_date"].strip() <= ymd <= r["end_date"].strip()):
-                continue                      # wrong schedule period
+                continue
             service_ids.add(r["service_id"].strip())
     return service_ids
 
