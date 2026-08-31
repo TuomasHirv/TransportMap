@@ -30,6 +30,8 @@ export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
   private s = inject(SettingsService);
   private results = L.layerGroup();
+  private radius = L.layerGroup();
+  private isoRenderer!: L.Canvas;
   private originMarker?: L.CircleMarker;
   private origin = signal<L.LatLng | null>(null);
   private static RAMP = ['#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#104281'];
@@ -71,25 +73,37 @@ export class MapComponent implements AfterViewInit {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(this.map);
+    const pane = this.map.createPane('iso');
+    pane.style.opacity = '0.35';
+    pane.style.zIndex = '450';
+    this.isoRenderer = L.canvas({ pane: 'iso' });
+
+    this.radius.addTo(this.map); // blob first, so dots draw above
     this.results.addTo(this.map);
     this.map.fitBounds(HSL_BOUNDS);
-    this.map.on('click', (e: L.LeafletMouseEvent) => {
-      this.map.on('click', (e) => this.origin.set(e.latlng));
-    });
+    this.map.on('click', (e: L.LeafletMouseEvent) => this.origin.set(e.latlng));
   }
 
   private draw(stops: ReachableStop[], origin: L.LatLng, budget: number): void {
     this.results.clearLayers();
-
+    this.radius.clearLayers();
     for (const s of stops) {
       const travel = budget - s.seconds_left;
+      L.circle([s.lat, s.lon], {
+        radius: Math.min(1000, s.seconds_left),
+        pane: 'iso',
+        renderer: this.isoRenderer,
+        stroke: false,
+        fillColor: '#256abf',
+        fillOpacity: 1,
+      }).addTo(this.radius);
       L.circleMarker([s.lat, s.lon], {
         radius: 3,
         fillColor: this.colourFor(travel, budget),
-        fillOpacity: 0.9,
+        fillOpacity: 0.5,
         weight: 2,
       })
-        .bindTooltip(`${s.stop_name} — ${Math.round(travel / 60)} min`)
+        .bindTooltip(`${s.stop_name} — ${Math.round(s.seconds_left / 60)} min`)
         .addTo(this.results);
     }
 
