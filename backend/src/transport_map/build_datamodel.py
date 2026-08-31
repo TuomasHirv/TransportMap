@@ -1,27 +1,25 @@
 import logging
 import time
-
+import numpy as np
 from collections import defaultdict
 from math import cos, hypot, radians
+from itertools import combinations
 
 from transport_map.models import Timetable
 from .config import MAX_WALK_METERS, MAX_WALK_SECONDS, WALK_SPEED
 
 
 from .parse_date import service_id_for_day, trips_from_services
-from .parse_footpaths import load_stops
-from .parse_routes import parse_routes_to_trips
 log = logging.getLogger("uvicorn.error")
 
 
-def build_data_model(day_type = "weekday"):
+def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday"):
     t0 = time.perf_counter()
     service_ids = service_id_for_day(day_type)
     accepted_trips = trips_from_services(service_ids)
+    trips_by_daytype = [t for t in all_trips if t[0] in accepted_trips]
     log.info("Service ids: %s. Accepted trips: %s", len(service_ids), len(accepted_trips))
-    trips = parse_routes_to_trips(accepted_trips)
-    parents, stop_names, coords = load_stops()
-    tt = create_timetable(trips)
+    tt = create_timetable(trips_by_daytype)
     tt.coords = coords
     tt.stop_names = stop_names
 
@@ -44,20 +42,39 @@ def metres(a, b):
 
 
 
-def build_footpaths(tt, parents,
-                    min_transfer=60):
-    """Add walking transfers to a Timetable. speed in m/s (1.33 ~ 4.8 km/h)."""
+def build_footpaths(tt, parents, min_transfer=60):
     ids = [s for s in tt.coords if s in tt.stops]
- 
-    added = 0
-    for i, a in enumerate(ids):
-        for b in ids[i + 1:]:
-            d = metres(tt.coords[a], tt.coords[b])
-            same_station = (a in parents and parents[a] == parents.get(b))
-            if d <= MAX_WALK_METERS or same_station:
-                secs = max(min_transfer, round(d / WALK_SPEED))
-                tt.add_footpath(a, b, secs)
-                added += 1
+    lats = np.fromiter((tt.coords[s][0] for s in ids), float, len(ids))
+    lons = np.fromiter((tt.coords[s][1] for s in ids), float, len(ids))
+
+    k = cos(radians(float(lats.mean())))
+    y = lats * 111320.0
+    x = lons * 111320.0 * k
+    r2 = MAX_WALK_METERS ** 2
+
+    pairs = {}                                   # (a, b) -> seconds
+    for i in range(len(ids)):
+        dy = y[i + 1:] - y[i]
+        dx = x[i + 1:] - x[i]
+        d2 = dy * dy + dx * dx
+        for j in np.flatnonzero(d2 <= r2):
+            d = float(np.sqrt(d2[j]))
+            pairs[(ids[i], ids[i + 1 + j])] = max(min_transfer, round(d / WALK_SPEED))
+
+    # same-station override, regardless of distance
+    groups = defaultdict(list)
+    for s in ids:
+        if s in parents:
+            groups[parents[s]].append(s)
+    for members in groups.values():
+        for a, b in combinations(members, 2):
+            if (a, b) not in pairs and (b, a) not in pairs:
+                d = metres(tt.coords[a], tt.coords[b])
+                pairs[(a, b)] = max(min_transfer, round(d / WALK_SPEED))
+
+    for (a, b), secs in pairs.items():
+        tt.add_footpath(a, b, secs)
+    return len(pairs)
 
 def close_footpaths(tt):
     """Transitive closure -- RAPTOR relaxes footpaths only once per round."""

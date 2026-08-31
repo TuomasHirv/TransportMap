@@ -1,11 +1,13 @@
-import logging
+import logging, time
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .build_datamodel import build_data_model
+from .parse_routes import parse_routes_to_trips
+from .parse_footpaths import load_stops
+from .build_datamodel import build_datamodel
 from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH
 from .models import Timetable
 from .raptor import reachable
@@ -26,9 +28,13 @@ async def lifespan(app: FastAPI):
              STOP_TIMES_PATH, 
              CALENDAR_PATH, 
              TRIPS_PATH)
+    t0 = time.perf_counter()
+    all_trips = parse_routes_to_trips()
+    parents, stop_names, coords = load_stops()
+    log.info("Read in %.2fs", time.perf_counter() - t0)
     for day in ["weekday", "saturday", "sunday"]:
         log.info("Building for: %s", day)
-        TIMETABLES[day] = build_data_model(day)
+        TIMETABLES[day] = build_datamodel(all_trips, parents, stop_names, coords, day)
         log.info("loaded %d stops, %d routes", 
                  len(TIMETABLES[day].stops), 
                  len(TIMETABLES[day].routes))

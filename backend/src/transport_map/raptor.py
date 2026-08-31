@@ -1,9 +1,8 @@
-from cmath import cos
 import logging
-from math import hypot, radians
+from math import hypot, radians, cos
 import time
 
-from .config import MAX_WALK_METERS, WALK_SPEED
+from .config import MAX_WALK_METERS_START, WALK_SPEED
 
 log = logging.getLogger("uvicorn.error")
 
@@ -22,13 +21,17 @@ INF = float("inf")
 
 def getNearby(tt, source):
     src_lat, src_lon = source
+    dlat = MAX_WALK_METERS_START / 111320
+    dlon = MAX_WALK_METERS_START / (111320 * cos(radians(src_lat)))
+
     walkable_stops = []
     for stop_id, (lat, lon) in tt.coords.items():
+        if abs(lat - src_lat) > dlat or abs(lon - src_lon) > dlon:
+            continue
         d = metres((lat, lon), (src_lat, src_lon))
-        if (d < MAX_WALK_METERS):
+        if d < MAX_WALK_METERS_START:
             walkable_stops.append((stop_id, round(d / WALK_SPEED)))
     return walkable_stops
-
 
 
 def reachable(tt, source, start_time, budget, max_rounds=8):

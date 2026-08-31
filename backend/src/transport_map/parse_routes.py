@@ -14,7 +14,7 @@ def parse_time(unprocessed_time):
     time_seconds = (int(time_list[0])*3600) + (int(time_list[1])*60) + int(time_list[2])
     return(time_seconds)
 
-def parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips):
+def parse_routes(reader, ARR, DEP, STOP, TRIP):
     """Groups the stops in to a dict of a list of tuples.
     KEY: trip_id = [(arrival_time, departure_time, stop_id), ... for all stops]
     Also filters by the accepted trips which we got from calendar."""
@@ -22,12 +22,11 @@ def parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips):
     (tid, [(parse_time(r[ARR]), parse_time(r[DEP]), r[STOP])
            for r in group])
     for tid, group in groupby(reader, key=lambda r: r[TRIP])
-    if tid.strip() in accepted_trips
     ]
     log.info("%s amount of trips", len(trips))
     return trips
 
-def parse_routes_to_trips(accepted_trips):
+def parse_routes_to_trips():
     """Reads the given file and returns the patterns of trips"""
     with open(STOP_TIMES_PATH, newline="", encoding="utf-8-sig") as fh:
         reader = csv.reader(fh)
@@ -39,7 +38,7 @@ def parse_routes_to_trips(accepted_trips):
             "stop_id", 
             "trip_id"))
 
-        trips = parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips)
+        trips = parse_routes(reader, ARR, DEP, STOP, TRIP)
         return trips
 
 
