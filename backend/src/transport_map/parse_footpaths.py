@@ -40,7 +40,6 @@ def build_footpaths(tt, parents,
                 secs = max(min_transfer, round(d / WALK_SPEED))
                 tt.add_footpath(a, b, secs)
                 added += 1
-    return added
 
 def close_footpaths(tt):
     """Transitive closure -- RAPTOR relaxes footpaths only once per round."""

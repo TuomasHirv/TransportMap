@@ -4,25 +4,8 @@ from transport_map.parse_routes import create_timetable
 from .config import MAX_WALK_METERS, WALK_SPEED, STOPS_PATH, STOP_TIMES_PATH
 
 import logging, time
-from pathlib import Path
 
 log = logging.getLogger("uvicorn.error")
-
-
-def build_data_model():
-    t0 = time.perf_counter()
-    tt = create_timetable()
-    parents = load_stops(tt, STOPS_PATH)
-    _ = build_footpaths(tt, parents)
-
-    n_trips = sum(len(r.trips) for r in tt.routes.values())
-    n_fp = sum(len(v) for v in tt.footpaths.values())
-    log.info("%d stops, %d routes, %d trips (%.1f trips/route)",
-             len(tt.stops), len(tt.routes), n_trips, n_trips / max(1, len(tt.routes)))
-    log.info("%d coords, %d footpath edges", len(tt.coords), n_fp)
-    log.info("built in %.2fs", time.perf_counter() - t0)
-    return close_footpaths(tt)
-
 
 
 def hm(h, m):

@@ -7,15 +7,16 @@ from fastapi.middleware.cors import CORSMiddleware
 log = logging.getLogger("uvicorn.error")
 
 from .models import Timetable
-from .raptor import build_data_model, reachable
+from .raptor import reachable
+from .build_datamodel import build_data_model
 
-from .config import STOPS_PATH, STOP_TIMES_PATH
+from .config import STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH,TRIPS_PATH
 TT = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global TT
-    log.info("Building data model from %s %s", STOPS_PATH, STOP_TIMES_PATH)
+    log.info("Building data model from %s %s %s %s", STOPS_PATH, STOP_TIMES_PATH, CALENDAR_PATH, TRIPS_PATH)
     TT = build_data_model()
     log.info("loaded %d stops, %d routes", len(TT.stops), len(TT.routes))
     yield

@@ -6,6 +6,11 @@ from transport_map.models import Timetable
 from .config import STOP_TIMES_PATH
 
 
+import logging
+
+log = logging.getLogger("uvicorn.error")
+
+
 def parse_time(unprocessed_time):
     """Parses a time string that is given to it to seconds INT."""
     time_list = unprocessed_time.split(":")
@@ -13,14 +18,17 @@ def parse_time(unprocessed_time):
     time_seconds = (int(time_list[0])*3600) + (int(time_list[1])*60) + int(time_list[2])
     return(time_seconds)
 
-def parse_routes(ARR, DEP, STOP, TRIP, reader):
+def parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips):
     """Groups the stops in to a dict of a list of tuples.
-    KEY: trip_id = [(arrival_time, departure_time, stop_id), ... for all stops]"""
+    KEY: trip_id = [(arrival_time, departure_time, stop_id), ... for all stops]
+    Also filters by the accepted trips which we got from calendar."""
     trips = [
     (tid, [(parse_time(r[ARR]), parse_time(r[DEP]), r[STOP])
            for r in group])
     for tid, group in groupby(reader, key=lambda r: r[TRIP])
+    if tid.strip() in accepted_trips
     ]
+    log.info("%s amount of trips", len(trips))
     return trips
 
 def build_patterns(trips):
@@ -61,7 +69,7 @@ def finalize_timetable(patterns):
     tt.finalize()
     return tt
 
-def create_timetable ():
+def create_timetable(accepted_trips):
     """Reads the given file and returns the patterns of trips"""
     with open(STOP_TIMES_PATH, newline="", encoding="utf-8-sig") as fh:
         reader = csv.reader(fh)
@@ -73,7 +81,7 @@ def create_timetable ():
             "stop_id", 
             "trip_id"))
 
-        trips = parse_routes(ARR, DEP, STOP, TRIP, reader)
+        trips = parse_routes(reader, ARR, DEP, STOP, TRIP, accepted_trips)
         patterns = build_patterns(trips)
         tt = finalize_timetable(patterns)
         return tt
