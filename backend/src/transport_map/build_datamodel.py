@@ -11,13 +11,24 @@ from .config import MAX_WALK_METERS, MAX_WALK_SECONDS, WALK_SPEED
 
 from .parse_date import service_id_for_day, trips_from_services
 log = logging.getLogger("uvicorn.error")
+DAY_IN_SECONDS = 86400
 
 
 def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday"):
     t0 = time.perf_counter()
-    service_ids = service_id_for_day(day_type)
-    accepted_trips = trips_from_services(service_ids)
-    trips_by_daytype = [t for t in all_trips if t[0] in accepted_trips]
+    service_ids, prev_day_service_ids = service_id_for_day(day_type)
+    accepted_trips, prev_accepted_trips = trips_from_services(service_ids, prev_day_service_ids)
+    # Morning trips are marked as >24:00:00 of the last day
+    curr_day_trips = [t for t in all_trips if t[0] in accepted_trips]
+    log.info("Trips in the current day: %s", len(curr_day_trips))
+    prev_day_night_trips = [
+    (tid + "_prev", [(arr - DAY_IN_SECONDS, dep - DAY_IN_SECONDS, stop) for arr, dep, stop in events])
+        for tid, events in all_trips
+        if tid in prev_accepted_trips and events[-1][0] >= DAY_IN_SECONDS
+    ]
+    log.info("Morning trips from prev day: %s", len(prev_day_night_trips))
+    trips_by_daytype = curr_day_trips + prev_day_night_trips
+
     log.info("Service ids: %s. Accepted trips: %s", len(service_ids), len(accepted_trips))
     tt = create_timetable(trips_by_daytype)
     tt.coords = coords
