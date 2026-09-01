@@ -9,7 +9,11 @@ import {
 } from '@angular/core';
 import * as L from 'leaflet';
 
-import { ReachableService, type ReachableStop } from '../app/services/reachable.service';
+import {
+  ReachableService,
+  type ReachableStop,
+  ReachableResponse,
+} from '../app/services/reachable.service';
 import { SettingsService } from '../app/services/settings.service';
 const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 
@@ -34,12 +38,6 @@ export class MapComponent implements AfterViewInit {
   private isoRenderer!: L.Canvas;
   private originMarker?: L.CircleMarker;
   private origin = signal<L.LatLng | null>(null);
-  private static RAMP = ['#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#104281'];
-
-  private colourFor(travelSecs: number, budget: number): string {
-    const band = Math.min(4, Math.floor((travelSecs / budget) * 5));
-    return MapComponent.RAMP[band];
-  }
 
   private map!: L.Map;
   private api = inject(ReachableService);
@@ -84,35 +82,37 @@ export class MapComponent implements AfterViewInit {
     this.map.on('click', (e: L.LeafletMouseEvent) => this.origin.set(e.latlng));
   }
 
-  private draw(stops: ReachableStop[], origin: L.LatLng, budget: number): void {
+  private static BANDS: Record<number, string> = {
+    10: '#8a3312',
+    20: '#d2551f',
+    30: '#ef8449',
+  };
+
+  private draw(res: ReachableResponse, origin: L.LatLng, budget: number): void {
     this.results.clearLayers();
     this.radius.clearLayers();
-    for (const s of stops) {
-      const travel = budget - s.seconds_left;
-      L.circle([s.lat, s.lon], {
-        radius: Math.min(1000, s.seconds_left),
-        pane: 'iso',
+
+    L.geoJSON(res.bands, {
+      pane: 'iso',
+      style: (f) => ({
         renderer: this.isoRenderer,
         stroke: false,
-        fillColor: '#256abf',
+        fillColor: MapComponent.BANDS[f!.properties['max_minutes']] ?? '#256abf',
         fillOpacity: 1,
-      }).addTo(this.radius);
-      L.circleMarker([s.lat, s.lon], {
-        radius: 3,
-        fillColor: this.colourFor(travel, budget),
-        fillOpacity: 0.5,
-        weight: 2,
-      })
+      }),
+    }).addTo(this.radius);
+    for (const s of res.stops) {
+      L.circleMarker([s.lat, s.lon], { radius: 3 })
         .bindTooltip(`${s.stop_name} — ${Math.round(s.seconds_left / 60)} min`)
         .addTo(this.results);
     }
 
     this.originMarker?.remove();
     this.originMarker = L.circleMarker(origin, {
-      radius: 7,
+      radius: 4,
       fillColor: '#e34948',
       fillOpacity: 1,
-      color: '#fff',
+      color: '#e34948',
       weight: 3,
     }).addTo(this.map);
   }

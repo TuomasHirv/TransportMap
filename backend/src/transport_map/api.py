@@ -5,13 +5,15 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH
+
 from .parse_routes import parse_routes_to_trips
 from .parse_footpaths import load_stops
 from .build_datamodel import build_datamodel
-from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH
+
 from .models import Timetable
 from .raptor import reachable
-
+from .draw_isochrone import build_bands, to_geojson
 log = logging.getLogger("uvicorn.error")
 
 
@@ -66,3 +68,33 @@ def reachable_endpoint(tt: Timetabledep, lat: float, lon: float, at: int, budget
          "seconds_left": left, "arrival": at + budget - left}
         for s, left, name in result
     ]
+
+@app.get("/isochrone")
+def isochrone(tt: Timetabledep, lat: float, lon: float, at: int, budget: int = 1800):
+    if not 0 <= at < 30 * 3600:
+        raise HTTPException(422, "at must be seconds after midnight")
+    if budget <= 0:
+        raise HTTPException(422, "budget must be positive")
+
+    result = reachable(tt, (lat, lon), at, budget)
+    stops = []
+    isochrone_stops = []
+    for s, left, name in result:
+        stops.append(
+            {"stop_name": name, 
+            "lat": tt.coords[s][0], 
+            "lon": tt.coords[s][1],
+            "seconds_left": left, 
+            "arrival": at + budget - left
+            })
+        isochrone_stops.append((
+            tt.coords[s][0],
+            tt.coords[s][1],
+            budget - left
+        ))
+    thresholds = tuple(t for t in (600, 1200, 1800) if t <= budget) or (budget,)
+    log.info("Creating geojson")
+    t0 = time.perf_counter()
+    geojson = to_geojson(build_bands(isochrone_stops, thresholds))
+    log.info("%d stops -> geojson in %.2fs", len(stops), time.perf_counter() - t0)
+    return {"stops": stops, "bands": geojson}
