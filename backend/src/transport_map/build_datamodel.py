@@ -7,7 +7,7 @@ from itertools import combinations
 
 from transport_map.models import Timetable
 from .config import MAX_WALK_METERS, MAX_WALK_SECONDS, WALK_SPEED
-
+from .shared_func import metres
 
 from .parse_date import service_id_for_day, trips_from_services
 log = logging.getLogger("uvicorn.error")

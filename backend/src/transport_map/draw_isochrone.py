@@ -18,11 +18,18 @@ def _to_latlon(x, y):
     return round(y / LAT_M, 5), round(x / LON_M, 5)
  
  
-def build_bands(stops, bands=(600, 1200, 1800), simplify_m=20):
-    """
-    stops: iterable of (lat, lon, travel_secs)
-    returns [(threshold_secs, shapely geometry), ...] largest band first
-    """
+def _polygons_only(geom):
+    """intersection() can return a GeometryCollection with stray lines/points."""
+    if geom.is_empty:
+        return None
+    if geom.geom_type in ("Polygon", "MultiPolygon"):
+        return geom
+    parts = [g for g in getattr(geom, "geoms", [])
+             if g.geom_type in ("Polygon", "MultiPolygon")]
+    return unary_union(parts) if parts else None
+
+
+def build_bands(stops, land, bands=(600, 1200, 1800), simplify_m=20,):
     out = []
     for t in sorted(bands, reverse=True):
         circles = [
@@ -32,9 +39,15 @@ def build_bands(stops, bands=(600, 1200, 1800), simplify_m=20):
         ]
         if not circles:
             continue
-        out.append((t, unary_union(circles).simplify(simplify_m)))
-    return out
- 
+
+        poly = unary_union(circles)
+        if land is not None:
+            poly = _polygons_only(poly.intersection(land))
+            if poly is None:
+                continue
+
+        out.append((t, poly.simplify(simplify_m)))
+    return out 
  
 def _rings(poly):
     """shapely Polygon -> GeoJSON coordinate rings ([lon, lat] order)."""

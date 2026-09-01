@@ -3,15 +3,9 @@ from math import hypot, radians, cos
 import time
 
 from .config import MAX_WALK_METERS_START, WALK_SPEED
+from .shared_func import metres
 
 log = logging.getLogger("uvicorn.error")
-
-
-def metres(a, b):
-    """Equirectangular approximation -- accurate well under 1% at walking range."""
-    (la1, lo1), (la2, lo2) = a, b
-    k = cos(radians((la1 + la2) / 2))
-    return hypot((la2 - la1) * 111320, (lo2 - lo1) * 111320 * k)
 
 
 def hm(h, m):

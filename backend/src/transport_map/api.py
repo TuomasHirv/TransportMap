@@ -5,11 +5,12 @@ from typing import Annotated, Literal
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH
+from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH, LAND_GEOJSON
 
 from .parse_routes import parse_routes_to_trips
 from .parse_footpaths import load_stops
 from .build_datamodel import build_datamodel
+from .load_geojson import load_land
 
 from .models import Timetable
 from .raptor import reachable
@@ -24,7 +25,9 @@ Geography = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    log.info("Loading land.geojson from: %s", LAND_GEOJSON)
     global Geography
+    Geography = load_land()
     log.info("Building datamodel from %s %s %s %s", 
              STOPS_PATH, 
              STOP_TIMES_PATH, 
@@ -95,6 +98,6 @@ def isochrone(tt: Timetabledep, lat: float, lon: float, at: int, budget: int = 1
     thresholds = tuple(t for t in (600, 1200, 1800) if t <= budget) or (budget,)
     log.info("Creating geojson")
     t0 = time.perf_counter()
-    geojson = to_geojson(build_bands(isochrone_stops, thresholds))
+    geojson = to_geojson(build_bands(isochrone_stops, Geography, thresholds))
     log.info("%d stops -> geojson in %.2fs", len(stops), time.perf_counter() - t0)
     return {"stops": stops, "bands": geojson}

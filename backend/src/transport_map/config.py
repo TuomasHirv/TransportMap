@@ -1,7 +1,9 @@
-STOPS_PATH = "stops.csv"
-STOP_TIMES_PATH = "stop_times.csv"
-CALENDAR_PATH = "calendar.csv"
-TRIPS_PATH = "trips.csv"
+STOPS_PATH = "data/stops.csv"
+STOP_TIMES_PATH = "data/stop_times.csv"
+CALENDAR_PATH = "data/calendar.csv"
+TRIPS_PATH = "data/trips.csv"
+LAND_GEOJSON = "data/land.geojson"
+
 
 WALK_SPEED = 1.33
 DETOUR_PRICE = 1.3
