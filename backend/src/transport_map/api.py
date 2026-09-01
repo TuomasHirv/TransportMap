@@ -1,20 +1,20 @@
-import logging, time
+import logging
+import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import CALENDAR_PATH, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH, LAND_GEOJSON
-
-from .parse_routes import parse_routes_to_trips
-from .parse_footpaths import load_stops
 from .build_datamodel import build_datamodel
-from .load_geojson import load_land
-
-from .models import Timetable
-from .raptor import reachable
+from .config import CALENDAR_PATH, LAND_GEOJSON, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH
 from .draw_isochrone import build_bands, to_geojson
+from .load_geojson import load_land
+from .models import Timetable
+from .parse_footpaths import load_stops
+from .parse_routes import parse_routes_to_trips
+from .raptor import reachable
+
 log = logging.getLogger("uvicorn.error")
 
 
@@ -96,8 +96,10 @@ def isochrone(tt: Timetabledep, lat: float, lon: float, at: int, budget: int = 1
             budget - left
         ))
     thresholds = tuple(t for t in (600, 1200, 1800) if t <= budget) or (budget,)
+
     log.info("Creating geojson")
     t0 = time.perf_counter()
     geojson = to_geojson(build_bands(isochrone_stops, Geography, thresholds))
     log.info("%d stops -> geojson in %.2fs", len(stops), time.perf_counter() - t0)
+    
     return {"stops": stops, "bands": geojson}

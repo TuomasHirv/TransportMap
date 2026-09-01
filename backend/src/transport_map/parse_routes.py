@@ -3,16 +3,10 @@ import logging
 from itertools import groupby
 
 from .config import STOP_TIMES_PATH
+from .shared_func import parse_time
 
 log = logging.getLogger("uvicorn.error")
 
-
-def parse_time(unprocessed_time):
-    """Parses a time string that is given to it to seconds INT."""
-    time_list = unprocessed_time.split(":")
-    # time_list is 0: hours 1: minutes 2: seconds STRING
-    time_seconds = (int(time_list[0])*3600) + (int(time_list[1])*60) + int(time_list[2])
-    return(time_seconds)
 
 def parse_routes(reader, ARR, DEP, STOP, TRIP):
     """Groups the stops in to a dict of a list of tuples.

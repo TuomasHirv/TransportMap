@@ -5,6 +5,7 @@ from .config import CALENDAR_PATH, TRIPS_PATH
 
 DAY_FLAG = {"weekday": "wednesday", "saturday": "saturday", "sunday": "sunday"}
 PREV_DAY_FLAG = {"weekday": "tuesday", "saturday": "friday", "sunday": "saturday"}
+
 def service_id_for_day(day_type, on=None):
     filter = DAY_FLAG[day_type]
     prev_filter = PREV_DAY_FLAG[day_type]

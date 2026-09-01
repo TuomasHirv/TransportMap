@@ -1,15 +1,11 @@
 import logging
-from math import hypot, radians, cos
 import time
+from math import cos, radians
 
 from .config import MAX_WALK_METERS_START, WALK_SPEED
 from .shared_func import metres
 
 log = logging.getLogger("uvicorn.error")
-
-
-def hm(h, m):
-    return h * 3600 + m * 60
 
 INF = float("inf")
 

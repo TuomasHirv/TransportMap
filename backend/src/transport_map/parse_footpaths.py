@@ -2,6 +2,7 @@ import csv
 
 from .config import STOPS_PATH
 
+
 def load_stops():
     """-> {stop_id: (lat, lon)}, {stop_id: parent_station}, skipping stations."""
     parents = {}
