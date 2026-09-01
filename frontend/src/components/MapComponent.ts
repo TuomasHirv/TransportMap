@@ -8,7 +8,7 @@ import {
   effect,
 } from '@angular/core';
 import * as L from 'leaflet';
-
+import 'leaflet.markercluster';
 import {
   ReachableService,
   type ReachableStop,
@@ -33,7 +33,13 @@ const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
   private s = inject(SettingsService);
-  private results = L.layerGroup();
+  private results = L.markerClusterGroup({
+    maxClusterRadius: 35,
+    disableClusteringAtZoom: 15,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: false,
+    spiderfyOnMaxZoom: false,
+  });
   private radius = L.layerGroup();
   private isoRenderer!: L.Canvas;
   private originMarker?: L.CircleMarker;
@@ -84,9 +90,9 @@ export class MapComponent implements AfterViewInit {
   }
 
   private static BANDS: Record<number, string> = {
-    10: '#8a3312',
-    20: '#d2551f',
-    30: '#ef8449',
+    10: '#e8a33d',
+    20: '#bc3754',
+    30: '#511a63',
   };
 
   private draw(res: ReachableResponse, origin: L.LatLng, budget: number): void {
@@ -103,8 +109,14 @@ export class MapComponent implements AfterViewInit {
       }),
     }).addTo(this.radius);
     for (const s of res.stops) {
-      L.circleMarker([s.lat, s.lon], { radius: 3 })
-        .bindTooltip(`${s.stop_name} — ${Math.round(s.seconds_left / 60)} min`)
+      if (Math.round(s.seconds_left / 60) > 2) {
+        L.circleMarker([s.lat, s.lon], { radius: 2 })
+          .bindTooltip(`${s.stop_name} — ${Math.round(s.seconds_left / 60)} min`)
+          .addTo(this.results);
+        continue;
+      }
+      L.circleMarker([s.lat, s.lon], { radius: 1, color: '#6E260E' })
+        .bindTooltip(`${s.stop_name} — ${Math.round((budget - s.seconds_left) / 60)} min`)
         .addTo(this.results);
     }
 
