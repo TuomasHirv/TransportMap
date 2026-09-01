@@ -1,8 +1,13 @@
-STOPS_PATH = "data/stops.csv"
-STOP_TIMES_PATH = "data/stop_times.csv"
-CALENDAR_PATH = "data/calendar.csv"
-TRIPS_PATH = "data/trips.csv"
-LAND_GEOJSON = "data/land.geojson"
+from pathlib import Path
+
+# Anchored to the backend root so the app no longer has to be started from backend/.
+DATA_DIR = Path(__file__).parent.parent.parent / "data"
+
+STOPS_PATH = DATA_DIR / "stops.csv"
+STOP_TIMES_PATH = DATA_DIR / "stop_times.csv"
+CALENDAR_PATH = DATA_DIR / "calendar.csv"
+TRIPS_PATH = DATA_DIR / "trips.csv"
+LAND_GEOJSON = DATA_DIR / "land.geojson"
 
 
 WALK_SPEED = 1.33

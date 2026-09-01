@@ -16,10 +16,13 @@ log = logging.getLogger("uvicorn.error")
 DAY_IN_SECONDS = 86400
 
 
-def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday"):
+def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday",
+                    on = None, calendar_path = None, trips_path = None):
+    """`on` pins the date the calendar window is evaluated against (default: today)."""
     t0 = time.perf_counter()
-    service_ids, prev_day_service_ids = service_id_for_day(day_type)
-    accepted_trips, prev_accepted_trips = trips_from_services(service_ids, prev_day_service_ids)
+    service_ids, prev_day_service_ids = service_id_for_day(day_type, on, calendar_path)
+    accepted_trips, prev_accepted_trips = trips_from_services(
+        service_ids, prev_day_service_ids, trips_path)
     # Morning trips are marked as >24:00:00 of the last day
     curr_day_trips = [t for t in all_trips if t[0] in accepted_trips]
     log.info("Trips in the current day: %s", len(curr_day_trips))

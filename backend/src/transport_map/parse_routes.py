@@ -20,9 +20,9 @@ def parse_routes(reader, ARR, DEP, STOP, TRIP):
     log.info("%s amount of trips", len(trips))
     return trips
 
-def parse_routes_to_trips():
+def parse_routes_to_trips(path=None):
     """Reads the given file and returns the patterns of trips"""
-    with open(STOP_TIMES_PATH, newline="", encoding="utf-8-sig") as fh:
+    with open(path or STOP_TIMES_PATH, newline="", encoding="utf-8-sig") as fh:
         reader = csv.reader(fh)
         cols = {name: i for i, name in enumerate(next(reader))}
 

@@ -72,6 +72,7 @@ export class MapComponent implements AfterViewInit {
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(this.map);
     const pane = this.map.createPane('iso');
+    pane.style.pointerEvents = 'none';
     pane.style.opacity = '0.35';
     pane.style.zIndex = '450';
     this.isoRenderer = L.canvas({ pane: 'iso' });

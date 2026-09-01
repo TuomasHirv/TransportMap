@@ -1,0 +1,11 @@
+﻿trip_id,arrival_time,departure_time,stop_id,stop_sequence,stop_headsign,pickup_type,drop_off_type,shape_dist_traveled,timepoint
+A_0800,08:00:00,08:00:00,A1,1,"Epsilonranta, via Keskus",0,1,0.000,1
+A_0805,08:05:00,08:05:00,A1,1,"Epsilonranta, via Keskus",0,1,0.000,1
+A_0800,08:04:00,08:04:00,A2,2,"Epsilonranta, via Keskus",0,0,0.609,0
+A_0805,08:07:00,08:07:00,A2,2,"Epsilonranta, via Keskus",0,0,0.609,0
+A_0800,08:08:00,08:08:00,HUB_N,3,"Epsilonranta, via Keskus",0,0,1.218,1
+A_0805,08:09:00,08:09:00,HUB_N,3,"Epsilonranta, via Keskus",0,0,1.218,1
+A_0800,08:12:00,08:12:00,A3,4,"Epsilonranta, via Keskus",0,0,1.827,0
+A_0805,08:11:00,08:11:00,A3,4,"Epsilonranta, via Keskus",0,0,1.827,0
+A_0800,08:16:00,08:16:00,A4,5,"Epsilonranta, via Keskus",1,0,2.436,1
+A_0805,08:13:00,08:13:00,A4,5,"Epsilonranta, via Keskus",1,0,2.436,1

@@ -1,0 +1,31 @@
+stop_id,stop_code,stop_name,stop_desc,stop_lat,stop_lon,zone_id,stop_url,location_type,parent_station,wheelchair_boarding,platform_code,vehicle_type,radius
+A1,T1001,"Alfaranta","Linja A, länsipää",60.171000,24.918000,A,,0, ,2, ,3,40
+A2,T1002,"Beetakuja","Linja A",60.171000,24.929000,A,,0, ,2, ,3,40
+HUB_N,T1003,"Töölö, Keskus","Linja A, vaihtopysäkki",60.171000,24.940000,A,,0, ,2, ,3,40
+A3,T1004,"Deltatori","Linja A",60.171000,24.951000,A,,0, ,2, ,3,40
+A4,T1005,"Epsilonranta","Linja A, itäpää merellä",60.171000,24.962000,B,,0, ,2, ,3,40
+B1,T2001,"Zetalahti","Linja B, eteläpää",60.164000,24.940000,A,,0, ,2, ,3,40
+HUB_S,T2002,"Keskus, etelä","Linja B, vaihtopysäkki",60.169000,24.940000,A,,0, ,2, ,3,40
+B2,T2003,"Eetantie","Linja B",60.174000,24.940000,A,,0, ,2, ,3,40
+B3,T2004,"Ääninen","Linja B, pohjoispää",60.179000,24.940000,A,,0, ,2, ,3,40
+T2,T2005,"Eetantie (vastapäätä)","Linja C, eteläpää",60.174000,24.940500,A,,0, ,2, ,3,40
+C1,T3001,"Iotakatu","Linja C",60.179000,24.943000,A,,0, ,2, ,3,40
+C2,T3002,"Kappalanmäki","Linja C",60.179000,24.954000,A,,0, ,2, ,3,40
+C3,T3003,"Lambdaniemi","Linja C, itäpää merellä",60.179000,24.965000,B,,0, ,2, ,3,40
+ST1,,"Myy-asema",,60.170000,24.954500,A,,1, ,2, , ,40
+P_A,T4001,"Myy-asema, laituri 1","Linja D",60.170000,24.950000,A,,0,ST1,2,1,3,40
+P_B,T4002,"Myy-asema, laituri 2","Linja E",60.170000,24.959000,A,,0,ST1,2,2,3,40
+D1,T4003,"Nyytori","Linja D, eteläpää",60.165000,24.950000,A,,0, ,2, ,3,40
+E1,T4004,"Ksitie","Linja E, eteläpää",60.165000,24.959000,A,,0, ,2, ,3,40
+F1,T7001,"Theetaniemi","Linja F, vaihto C3:lta kävellen",60.179800,24.966800,B,,0, ,2, ,3,40
+F2,T7002,"Khiiranta","Linja F",60.179800,24.978000,B,,0, ,2, ,3,40
+F3,T7003,"Psiilahti","Linja F, itäpää",60.179800,24.989000,B,,0, ,2, ,3,40
+W1,T5001,"Omikronpää","Kävelyketju",60.160000,24.900000,A,,0, ,2, ,3,40
+W2,T5002,"Piikuja","Kävelyketju",60.160000,24.906300,A,,0, ,2, ,3,40
+W3,T5003,"Rhoranta","Kävelyketju",60.160000,24.912600,A,,0, ,2, ,3,40
+W4,T5004,"Sigmalahti","Kävelyketju",60.160000,24.918900,A,,0, ,2, ,3,40
+L1,T6001,"Tautori","Rengaslinja L, ei footpath-naapureita",60.165000,24.930000,A,,0, ,2, ,3,40
+L2,T6002,"Ypsilonpuisto","Rengaslinja L, käydään kahdesti",60.165000,24.920000,A,,0, ,2, ,3,40
+L3,T6003,"Fiikuja","Rengaslinja L, kääntöpaikka",60.157000,24.928000,A,,0, ,2, ,3,40
+Z1,T9001,"Omegasaari","Ei liikennettä, ei footpath-naapureita",60.300000,25.300000,B,,0, ,2, ,3,40
+X1,T9002,"Ei liikennettä","HUB_N:n vieressä, ei yhtään vuoroa",60.171000,24.940100,A,,0, ,2, ,3,40

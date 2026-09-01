@@ -3,12 +3,12 @@ import csv
 from .config import STOPS_PATH
 
 
-def load_stops():
+def load_stops(path=None):
     """-> {stop_id: (lat, lon)}, {stop_id: parent_station}, skipping stations."""
     parents = {}
     stop_names = {}
     coords = {}
-    with open(STOPS_PATH, newline="", encoding="utf-8-sig") as fh:
+    with open(path or STOPS_PATH, newline="", encoding="utf-8-sig") as fh:
         for r in csv.DictReader(fh):
             sid = r["stop_id"].strip()
             if r["location_type"].strip() == "1":

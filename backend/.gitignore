@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Real GTFS feed -- large (stop_times.csv is ~982 MB), not distributed.
+# Anchored to backend/data/ so the patterns do not also swallow tests/fixtures/.
+/data/stop_times.csv
+/data/stops.csv
+/data/trips.csv
+/data/calendar.csv
+/data/land.geojson
+
+# Superseded by tests/fixtures/network/
+/fakeStops.csv
+/fakeStopTimes.csv

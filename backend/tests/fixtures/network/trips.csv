@@ -1,0 +1,24 @@
+route_id,service_id,trip_id,trip_headsign,direction_id,block_id,shape_id,wheelchair_accessible,bikes_allowed,max_delay
+A,SVC_WED,A_0800,"Epsilonranta, via Keskus",0,101,A_1,1,2,3
+A,SVC_WED,A_0805,"Epsilonranta, via Keskus",0,102,A_1,1,2,3
+A,SVC_WED,A_0830,"Epsilonranta, via Keskus",0,103,A_1,1,2,3
+A,SVC_WED,A_R_0800,"Alfaranta, via Keskus",1,104,A_2,1,2,3
+B,SVC_WED,B_0810,"Ääninen",0,201,B_1,1,2,3
+B,SVC_WED,B_0840,"Ääninen",0,202,B_1,1,2,3
+C,SVC_WED,C_0820,"Lambdaniemi",0,301,C_1,1,2,3
+C,SVC_WED,C_0850,"Lambdaniemi",0,302,C_1,1,2,3
+D,SVC_WED,D_0800,"Myy-asema, laituri 1",0,401,D_1,1,2,3
+E,SVC_WED,E_0822,"Ksitie",0,402,E_1,1,2,3
+L,SVC_WED,L_0800,"Rengaslinja L",0,601,L_1,1,2,3
+W,SVC_WED,W_0800,"Sigmalahti",0,501,W_1,1,2,3
+F,SVC_WED,F_0833,"Psiilahti",0,701,F_1,1,2,3
+A,SVC_WED,A_2350_WED,"Epsilonranta, via Keskus",0,105,A_1,1,2,3
+B,SVC_TUE,B_2345_TUE,"Ääninen",0,203,B_1,1,2,3
+C,SVC_TUE,C_2350_TUE,"Lambdaniemi",0,303,C_1,1,2,3
+A,SVC_TUE,A_2200_TUE,"Epsilonranta, via Keskus",0,106,A_1,1,2,3
+A,SVC_SAT,A_1000_SAT,"Epsilonranta, via Keskus",0,107,A_1,1,2,3
+B,SVC_SAT,B_1010_SAT,"Ääninen",0,204,B_1,1,2,3
+A,SVC_FRI,A_2350_FRI,"Epsilonranta, via Keskus",0,108,A_1,1,2,3
+A,SVC_SUN,A_1200_SUN,"Epsilonranta, via Keskus",0,109,A_1,1,2,3
+B,SVC_DAILY,B_1200_DAILY,"Ääninen",0,205,B_1,1,2,3
+A,SVC_EXPIRED,A_0900_EXPIRED,"Epsilonranta, via Keskus",0,110,A_1,1,2,3
