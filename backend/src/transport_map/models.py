@@ -14,7 +14,8 @@ class Route:
     stops: list[str]
     # trips[t][i] = (arrival, departure) of trip t at the i-th stop of the route.
     trips: list[list[tuple[int, int]]] = field(default_factory=list)
- 
+
+    short_name: str = ""
     # index built by Timetable.finalize()
     _stop_pos: dict[str, list[int]] = field(default_factory=dict, repr=False)
     _deps: list[list[int]] = field(default_factory=list, repr=False)
@@ -28,15 +29,6 @@ class Route:
         deps = self._deps[pos]
         t = bisect_left(deps, time)
         return t if t < len(deps) else None
- 
-class Geography:
-    """Holds date-independent items like: stops, names, coordinates and footpaths"""
-    def __init__(self) -> None:
-        self.stops: set[str] = set()
-        self.coords: dict[str] = {}
-        self.stop_names: dict[str] = {}
-        self.footpaths: dict[str, list[tuple[str, int]]] = defaultdict(list)
-
 
 class Timetable:
     def __init__(self) -> None:
@@ -56,11 +48,11 @@ class Timetable:
     # -- construction ------------------------------------------------------
  
     def add_route(self, route_id: str, stops: Sequence[str],
-                  trips: Iterable[Sequence[tuple[int, int]]]) -> None:
+                  trips: Iterable[Sequence[tuple[int, int]]], name: str) -> None:
         trips = [list(t) for t in trips]
         for t in trips:
             assert len(t) == len(stops), "trip must have one event per route stop"
-        self.routes[route_id] = Route(route_id, list(stops), trips)
+        self.routes[route_id] = Route(route_id, list(stops), trips, name)
         self.stops.update(stops)
  
     def add_footpath(self, a: str, b: str, seconds: int, both: bool = True) -> None:
@@ -85,4 +77,3 @@ class Timetable:
             if not any(q == s for q, _ in self.footpaths[s]):
                 self.footpaths[s].append((s, 0))
         return self
-

@@ -9,19 +9,20 @@ import { SettingsService } from '../../services/settings.service';
     <p class="flex flex-col gap-1 text-xl font-medium text-slate-700">Settings</p>
     <fieldset class="flex flex-col gap-1">
       <legend class="text-sm font-medium text-slate-700 mb-1">Day</legend>
-
-      @for (d of days; track d) {
-        <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-          <input
-            type="radio"
-            name="days"
-            class="accent-sky-600"
-            [checked]="s.days() === d"
-            (change)="s.days.set(d)"
-          />
-          <span class="capitalize">{{ d }}</span>
-        </label>
-      }
+      <div class="flex flex-wrap items-center gap-4">
+        @for (d of days; track d) {
+          <label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="radio"
+              name="days"
+              class="accent-sky-600"
+              [checked]="s.days() === d"
+              (change)="s.days.set(d)"
+            />
+            <span class="capitalize">{{ d }}</span>
+          </label>
+        }
+      </div>
     </fieldset>
     <label class="flex flex-col gap-1 text-sm font-medium text-slate-700"
       >Time
@@ -38,6 +39,18 @@ import { SettingsService } from '../../services/settings.service';
         class="rounded-md border border-slate-300 px-3 py-2 text-base"
         [value]="s.duration() / 60"
         (change)="s.duration.set(+$any($event.target).value * 60)"
+      />
+    </label>
+    <label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
+      Transfers
+      <input
+        type="number"
+        min="1"
+        max="8"
+        step="1"
+        class="rounded-md border border-slate-300 px-3 py-2 text-base"
+        [value]="s.transfers()"
+        (change)="s.transfers.set(+$any($event.target).value)"
       />
     </label>
   </div>`,

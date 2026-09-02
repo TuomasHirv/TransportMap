@@ -53,11 +53,13 @@ export class MapComponent implements AfterViewInit {
       const at = this.s.at();
       const budget = this.s.duration();
       const day = this.s.days();
+      const transfers = this.s.transfers();
+      if (transfers > 8 || transfers < 1) return;
       if (!day) return;
       if (!origin) return;
 
       this.api
-        .query(origin.lat, origin.lng, at, budget, day)
+        .query(origin.lat, origin.lng, at, budget, day, transfers)
         .subscribe({ next: (stops) => this.draw(stops, origin, budget) });
     });
   }

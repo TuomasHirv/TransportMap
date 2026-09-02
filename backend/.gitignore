@@ -10,8 +10,8 @@ __pycache__/
 /data/stops.csv
 /data/trips.csv
 /data/calendar.csv
+/data/routes.csv
 /data/land.geojson
-
 # Superseded by tests/fixtures/network/
 /fakeStops.csv
 /fakeStopTimes.csv

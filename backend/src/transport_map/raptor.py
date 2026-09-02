@@ -34,7 +34,7 @@ def reachable(tt, source, start_time, budget, max_rounds=8):
     walkable_stops = getNearby(tt, source)
     if not walkable_stops: 
         return {}
-    for q, w in walkable_stops:                # NEW: round 0, walk from source
+    for q, w in walkable_stops:                # round 0, walk from source
         if start_time + w <= horizon:
             best[q] = board[q] = start_time + w
             marked.add(q)
@@ -73,5 +73,7 @@ def reachable(tt, source, start_time, budget, max_rounds=8):
         if not marked:
             break
     log.info("reachable finished in %.2fs", time.perf_counter() - t0)
-
-    return {(p, horizon - a, tt.stop_names[p]) for p, a in best.items()}
+    result = []
+    for p, a in best.items():
+        result.append((p, horizon - a, tt.stop_names[p]))
+    return result, walkable_stops

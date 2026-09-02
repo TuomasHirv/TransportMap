@@ -16,7 +16,7 @@ log = logging.getLogger("uvicorn.error")
 DAY_IN_SECONDS = 86400
 
 
-def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday",
+def build_datamodel(all_trips, parents, stop_names, trip_id_shortname, coords, day_type = "weekday",
                     on = None, calendar_path = None, trips_path = None):
     """`on` pins the date the calendar window is evaluated against (default: today)."""
     t0 = time.perf_counter()
@@ -27,7 +27,7 @@ def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday"
     curr_day_trips = [t for t in all_trips if t[0] in accepted_trips]
     log.info("Trips in the current day: %s", len(curr_day_trips))
     prev_day_night_trips = [
-    (tid + "_prev", 
+    (tid, 
      [(arr - DAY_IN_SECONDS, dep - DAY_IN_SECONDS, stop) for arr, dep, stop in events])
         for tid, events in all_trips
         if tid in prev_accepted_trips and events[-1][0] >= DAY_IN_SECONDS
@@ -36,7 +36,8 @@ def build_datamodel(all_trips, parents, stop_names, coords, day_type = "weekday"
     trips_by_daytype = curr_day_trips + prev_day_night_trips
 
     log.info("Service ids: %s. Accepted trips: %s", len(service_ids), len(accepted_trips))
-    tt = create_timetable(trips_by_daytype)
+    tt = create_timetable(trips_by_daytype, trip_id_shortname)
+    
     tt.coords = coords
     tt.stop_names = stop_names
 
@@ -102,7 +103,7 @@ def close_footpaths(tt):
     return tt
 
 
-def finalize_timetable(patterns):
+def finalize_timetable(patterns, trip_id_shortname):
     tt = Timetable()
     trip_index = {}
     n = 0
@@ -110,15 +111,16 @@ def finalize_timetable(patterns):
         for group in split_overtaking(len(seq), pattern_trips):
             rid = f"r{n}"
             n += 1
-            tt.add_route(rid, seq, [st for _, st in group])
+            name = trip_id_shortname.get(group[0][0], "")
+            tt.add_route(rid, seq, [st for _, st in group], name)
             for i, (trip_id, _) in enumerate(group):
                 trip_index[(rid, i)] = trip_id
     tt.finalize()
     return tt
 
-def create_timetable(trips):
+def create_timetable(trips, trip_id_shortname):
     patterns = build_patterns(trips)
-    tt = finalize_timetable(patterns)
+    tt = finalize_timetable(patterns, trip_id_shortname)
     return tt
 
 def build_patterns(trips):

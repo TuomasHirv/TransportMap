@@ -7,6 +7,7 @@ STOPS_PATH = DATA_DIR / "stops.csv"
 STOP_TIMES_PATH = DATA_DIR / "stop_times.csv"
 CALENDAR_PATH = DATA_DIR / "calendar.csv"
 TRIPS_PATH = DATA_DIR / "trips.csv"
+NAMES_PATH = DATA_DIR / "routes.csv"
 LAND_GEOJSON = DATA_DIR / "land.geojson"
 
 

@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
 
 export interface ReachableResponse {
   stops: ReachableStop[];
@@ -24,9 +23,9 @@ export interface ReachableStop {
 export class ReachableService {
   private http = inject(HttpClient);
 
-  query(lat: number, lon: number, at: number, budget: number, day: string) {
+  query(lat: number, lon: number, at: number, budget: number, day: string, max_rounds: number) {
     return this.http.get<ReachableResponse>('/api/isochrone', {
-      params: { lat, lon, at, budget, day },
+      params: { lat, lon, at, budget, day, max_rounds },
     });
   }
 }
