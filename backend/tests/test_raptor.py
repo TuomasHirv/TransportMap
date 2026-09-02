@@ -16,7 +16,7 @@ EIGHT_AM = hm(8, 0)
 def arrivals(tt, coords, source, at, budget, **kwargs):
     """{stop_id: absolute arrival second}, inverting reachable's seconds_left."""
     horizon = at + budget
-    result = reachable(tt, coords[source], at, budget, **kwargs)
+    result, _walkable = reachable(tt, coords[source], at, budget, **kwargs)
     return {stop: horizon - left for stop, left, _ in result}
 
 
@@ -76,14 +76,14 @@ class TestReferenceJourney:
         assert len(arrivals(weekday_tt, coords, "A1", EIGHT_AM, 1800)) == 15
 
     def test_seconds_left_is_the_budget_remainder(self, weekday_tt, coords):
-        result = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
-        for stop, left, _ in result:
+        result, _ = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
+        for stop, left, _name in result:
             assert 0 <= left <= 1800
             assert EIGHT_AM + 1800 - left == pytest.approx(self.EXPECTED[stop], abs=2)
 
     def test_returns_the_stop_name(self, weekday_tt, coords):
-        result = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
-        names = {stop: name for stop, _, name in result}
+        result, _ = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
+        names = {stop: name for stop, _left, name in result}
         assert names["HUB_N"] == "Töölö, Keskus"
         assert names["C3"] == "Lambdaniemi"
 
@@ -203,14 +203,20 @@ class TestDocumentedQuirks:
     def test_an_unserved_stop_far_from_the_source_never_appears(self, weekday_tt, coords):
         assert "Z1" not in arrivals(weekday_tt, coords, "A1", EIGHT_AM, 3600)
 
-    def test_returns_an_empty_dict_rather_than_an_empty_set(self, weekday_tt):
-        """The no-walkable-stops early return is {} while the success path returns a set.
-        Both iterate empty, so the endpoints happen to work either way."""
-        result = reachable(weekday_tt, (59.0, 20.0), EIGHT_AM, 1800)
-        assert result == {}
-        assert isinstance(result, dict)
+    def test_both_exit_paths_return_the_same_shape(self, weekday_tt, coords):
+        """The no-walkable-stops early return used to be a bare {} while the success
+        path returned a 2-tuple, which made /isochrone 500 on any rural or offshore
+        click. Both now return (results, walkable_stops)."""
+        empty = reachable(weekday_tt, (59.0, 20.0), EIGHT_AM, 1800)
+        assert empty == ([], [])
+        result, walkable = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
+        assert isinstance(result, list) and isinstance(walkable, list)
 
-    def test_the_success_path_returns_a_set_of_triples(self, weekday_tt, coords):
-        result = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
-        assert isinstance(result, set)
+    def test_the_success_path_returns_triples(self, weekday_tt, coords):
+        result, _ = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
         assert all(len(item) == 3 for item in result)
+
+    def test_also_returns_the_stops_walkable_from_the_source(self, weekday_tt, coords):
+        """The second return value feeds lines_nearby -- see test_nearby_routes.py."""
+        _, walkable = reachable(weekday_tt, coords["A1"], EIGHT_AM, 1800)
+        assert walkable == [("A1", 0)]

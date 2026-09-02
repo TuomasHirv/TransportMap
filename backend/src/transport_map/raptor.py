@@ -32,8 +32,8 @@ def reachable(tt, source, start_time, budget, max_rounds=8):
     board = {}     # earliest time we may board there
     marked = set()
     walkable_stops = getNearby(tt, source)
-    if not walkable_stops: 
-        return {}
+    if not walkable_stops:
+        return [], []                          # same shape as the success path below
     for q, w in walkable_stops:                # round 0, walk from source
         if start_time + w <= horizon:
             best[q] = board[q] = start_time + w

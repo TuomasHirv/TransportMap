@@ -103,14 +103,52 @@ class TestCreateTimetable:
             [
                 ("slow", [(0, 0, "A"), (100, 100, "B"), (200, 200, "C")]),
                 ("fast", [(10, 10, "A"), (60, 60, "B"), (110, 110, "C")]),
-            ]
+            ],
+            {"slow": "1", "fast": "1"},
         )
         assert len(tt.routes) == 2
         assert all(r.stops == ["A", "B", "C"] for r in tt.routes.values())
 
     def test_finalizes_the_result(self):
-        tt = create_timetable([("t", [(0, 0, "A"), (60, 60, "B")])])
+        tt = create_timetable([("t", [(0, 0, "A"), (60, 60, "B")])], {"t": "1"})
         assert tt.routes_by_stop["A"] == [("r0", 0)]
+
+
+class TestRouteNaming:
+    """finalize_timetable names each route from the first trip of its group."""
+
+    def test_names_a_route_from_its_trips(self):
+        tt = create_timetable([("t", [(0, 0, "A"), (60, 60, "B")])], {"t": "550"})
+        assert tt.routes["r0"].short_name == "550"
+
+    def test_both_halves_of_an_overtaking_split_keep_the_line_name(self):
+        """Splitting for the non-overtaking assumption is an internal detail -- a rider
+        still sees one line."""
+        tt = create_timetable(
+            [
+                ("slow", [(0, 0, "A"), (100, 100, "B"), (200, 200, "C")]),
+                ("fast", [(10, 10, "A"), (60, 60, "B"), (110, 110, "C")]),
+            ],
+            {"slow": "1", "fast": "1"},
+        )
+        assert len(tt.routes) == 2
+        assert {r.short_name for r in tt.routes.values()} == {"1"}
+
+    def test_an_unmapped_trip_yields_an_empty_name(self):
+        """A route_id absent from routes.csv never reaches trip_id_shortname."""
+        tt = create_timetable([("t", [(0, 0, "A"), (60, 60, "B")])], {})
+        assert tt.routes["r0"].short_name == ""
+
+    def test_the_name_comes_from_the_earliest_trip_in_the_group(self):
+        """Groups are sorted by first departure, so group[0] is the earliest trip."""
+        tt = create_timetable(
+            [
+                ("later", [(300, 300, "A"), (400, 400, "B")]),
+                ("earlier", [(100, 100, "A"), (200, 200, "B")]),
+            ],
+            {"earlier": "first", "later": "second"},
+        )
+        assert tt.routes["r0"].short_name == "first"
 
 
 # -------------------------------------------------------------------------- footpaths
@@ -146,14 +184,14 @@ class TestBuildFootpaths:
 
     def test_returns_the_number_of_pairs_created(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]])
+        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]], "1")
         tt.coords = {"A": (60.170, 24.940), "B": (60.171, 24.940)}
         tt.finalize()
         assert build_footpaths(tt, {}) == 1
 
     def test_isolated_stop_gets_no_neighbours(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]])
+        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]], "1")
         tt.coords = {"A": (60.170, 24.940), "B": (60.400, 25.400)}
         tt.finalize()
         assert build_footpaths(tt, {}) == 0
@@ -212,7 +250,7 @@ class TestCloseFootpaths:
 
     def test_keeps_the_shortest_of_several_paths(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B", "C"], [[(0, 0), (1, 1), (2, 2)]])
+        tt.add_route("r0", ["A", "B", "C"], [[(0, 0), (1, 1), (2, 2)]], "1")
         tt.add_footpath("A", "B", 100)
         tt.add_footpath("B", "C", 100)
         tt.add_footpath("A", "C", 500)  # direct but slower than walking via B
@@ -221,7 +259,7 @@ class TestCloseFootpaths:
 
     def test_is_transitive_over_a_chain(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B", "C"], [[(0, 0), (1, 1), (2, 2)]])
+        tt.add_route("r0", ["A", "B", "C"], [[(0, 0), (1, 1), (2, 2)]], "1")
         tt.add_footpath("A", "B", 100)
         tt.add_footpath("B", "C", 100)
         tt.finalize()

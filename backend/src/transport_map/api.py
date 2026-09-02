@@ -1,24 +1,29 @@
 import logging
 import time
 from contextlib import asynccontextmanager
-from typing import Annotated, Literal
 from pathlib import Path
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .build_datamodel import build_datamodel
-from .config import CALENDAR_PATH, LAND_GEOJSON, STOP_TIMES_PATH, STOPS_PATH, TRIPS_PATH, NAMES_PATH
-from .models import Timetable
-
-from .load_geojson import load_land
-from .parse_footpaths import load_stops
-from .parse_routes import parse_routes_to_trips
-from .parse_names import routename_to_shortname, tripname_to_shortname
-
-from .raptor import reachable
+from .config import (
+    CALENDAR_PATH,
+    LAND_GEOJSON,
+    NAMES_PATH,
+    STOP_TIMES_PATH,
+    STOPS_PATH,
+    TRIPS_PATH,
+)
 from .draw_isochrone import build_bands, to_geojson
+from .load_geojson import load_land
+from .models import Timetable
 from .nearby_routes import lines_nearby
+from .parse_footpaths import load_stops
+from .parse_names import routename_to_shortname, tripname_to_shortname
+from .parse_routes import parse_routes_to_trips
+from .raptor import reachable
 
 log = logging.getLogger("uvicorn.error")
 
@@ -33,9 +38,9 @@ async def lifespan(app: FastAPI):
     log.info("Loading land.geojson from: %s", Path(*LAND_GEOJSON.parts[-3:]))
     global Geography
     Geography = load_land()
-    log.info("Building datamodel from %s, %s, %s, %s, %s", 
-             Path(*STOPS_PATH.parts[-3:]), 
+    log.info("Building datamodel from %s, %s, %s, %s, %s",
              Path(*STOPS_PATH.parts[-3:]),
+             Path(*STOP_TIMES_PATH.parts[-3:]),
              Path(*CALENDAR_PATH.parts[-3:]),
              Path(*TRIPS_PATH.parts[-3:]),
              Path(*NAMES_PATH.parts[-3:])
@@ -58,7 +63,8 @@ async def lifespan(app: FastAPI):
     log.info("Read in %.2fs", time.perf_counter() - t0)
     for day in ["weekday", "saturday", "sunday"]:
         log.info("Building for: %s", day)
-        TIMETABLES[day] = build_datamodel(all_trips, parents, stop_names, trip_id_shortname, coords, day)
+        TIMETABLES[day] = build_datamodel(all_trips, parents, stop_names, coords,
+                                          trip_id_shortname, day)
         log.info("loaded %d stops, %d routes", 
                  len(TIMETABLES[day].stops), 
                  len(TIMETABLES[day].routes))
@@ -75,24 +81,9 @@ def get_timetable(day: DayType = "weekday") -> Timetable:
 Timetabledep = Annotated[Timetable, Depends(get_timetable)]
 
 
-@app.get("/reachable")
-def reachable_endpoint(tt: Timetabledep, lat: float, lon: float, at: int, budget: int = 1800):
-    """Stops reachable from (lat, lon) departing at `at`, within `budget` seconds."""
-    print("reachable called latitude:", lat, "And longitude:", lon, "Time:", at, "Budget", budget)
-    if not 0 <= at < 30 * 3600:
-        raise HTTPException(422, "at must be seconds after midnight")
-    if budget <= 0:
-        raise HTTPException(422, "budget must be positive")
-
-    result = reachable(tt, (lat, lon), at, budget)
-    return [
-        {"stop_name": name, "lat": tt.coords[s][0], "lon": tt.coords[s][1],
-         "seconds_left": left, "arrival": at + budget - left}
-        for s, left, name in result
-    ]
-
 @app.get("/isochrone")
-def isochrone(tt: Timetabledep, lat: float, lon: float, at: int, budget: int = 1800, max_rounds: int = 8):
+def isochrone(tt: Timetabledep, lat: float, lon: float, at: int,
+              budget: int = 1800, max_rounds: int = 8):
     if not 0 <= at < 30 * 3600:
         raise HTTPException(422, "at must be seconds after midnight")
     if budget <= 0:

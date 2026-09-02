@@ -16,7 +16,7 @@ log = logging.getLogger("uvicorn.error")
 DAY_IN_SECONDS = 86400
 
 
-def build_datamodel(all_trips, parents, stop_names, trip_id_shortname, coords, day_type = "weekday",
+def build_datamodel(all_trips, parents, stop_names, coords, trip_id_shortname, day_type = "weekday",
                     on = None, calendar_path = None, trips_path = None):
     """`on` pins the date the calendar window is evaluated against (default: today)."""
     t0 = time.perf_counter()

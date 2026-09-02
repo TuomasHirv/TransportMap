@@ -14,6 +14,7 @@ import pytest
 from transport_map.build_datamodel import build_datamodel
 from transport_map.load_geojson import load_land
 from transport_map.parse_footpaths import load_stops
+from transport_map.parse_names import routename_to_shortname, tripname_to_shortname
 from transport_map.parse_routes import parse_routes_to_trips
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -24,6 +25,7 @@ STOPS_CSV = NETWORK / "stops.csv"
 STOP_TIMES_CSV = NETWORK / "stop_times.csv"
 TRIPS_CSV = NETWORK / "trips.csv"
 CALENDAR_CSV = NETWORK / "calendar.csv"
+ROUTES_CSV = NETWORK / "routes.csv"
 LAND_GEOJSON = NETWORK / "land.geojson"
 
 # The fixture calendar is only valid 20260831..20261024.  Passing these dates as
@@ -67,13 +69,25 @@ def raw_trips():
 
 
 @pytest.fixture(scope="session")
-def build_timetable(raw_trips, stops_data):
+def route_shortnames():
+    """{route_id: route_short_name} straight from the fixture routes.csv."""
+    return routename_to_shortname(ROUTES_CSV)
+
+
+@pytest.fixture(scope="session")
+def trip_shortnames(route_shortnames):
+    """{trip_id: route_short_name}. Line W is absent -- it has no routes.csv row."""
+    return tripname_to_shortname(route_shortnames, TRIPS_CSV)
+
+
+@pytest.fixture(scope="session")
+def build_timetable(raw_trips, stops_data, trip_shortnames):
     """Factory: ``build_timetable("saturday")`` -> a fresh Timetable for that day."""
     parents, stop_names, coords = stops_data
 
     def _build(day_type="weekday"):
         return build_datamodel(
-            raw_trips, parents, stop_names, coords, day_type,
+            raw_trips, parents, stop_names, coords, trip_shortnames, day_type,
             on=REFERENCE_DATES[day_type],
             calendar_path=CALENDAR_CSV,
             trips_path=TRIPS_CSV,

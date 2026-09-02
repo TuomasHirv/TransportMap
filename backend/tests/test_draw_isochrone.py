@@ -107,7 +107,7 @@ class TestBuildBandsWithRealJourney:
         coords = stops_data[2]
         return [
             (coords[stop][0], coords[stop][1], 1800 - left)
-            for stop, left, _ in reachable(weekday_tt, coords["A1"], 28800, 1800)
+            for stop, left, _ in reachable(weekday_tt, coords["A1"], 28800, 1800)[0]
         ]
 
     def test_produces_three_nested_bands(self, journey, land):

@@ -11,7 +11,7 @@ in this file were produced by running the actual code, not estimated. If you cha
 coordinate or a time, re-derive the tables here.
 
 ```
-network/    the main feed: stops, stop_times, trips, calendar, land
+network/    the main feed: stops, stop_times, trips, calendar, routes, land
 unsorted/   stop_times.csv only, with two trips' rows interleaved
 ```
 
@@ -148,6 +148,11 @@ Tuesday+Wednesday service would never land in the prev-day set.
 
 ## `network/trips.csv` + `stop_times.csv` — 23 trips, 98 stop_time rows
 
+Previous-day trips keep their **original trip_id** (they used to gain a `_prev` suffix).
+That is deliberate: `finalize_timetable` names each route via
+`trip_id_shortname[trip_id]`, and a suffixed id would miss that lookup and leave night
+routes unnamed.
+
 Patterns (a "route" is an *exact* stop sequence, per the RAPTOR paper):
 
 | pattern | stops |
@@ -175,9 +180,9 @@ Patterns (a "route" is an *exact* stop sequence, per the RAPTOR paper):
 | `L_0800` | L | WED | 08:00 → 08:14 | loop |
 | `W_0800` | W | WED | 08:00 +4 min | puts the W stops into `tt.stops` |
 | `F_0833` | F | WED | 08:33 → 08:41 | **only catchable in round 3**, after riding C to `C3` and walking 100 s |
-| `C_2350_TUE` | C | TUE | 23:50 → **24:35** | → `C_2350_TUE_prev`; still running at 00:05, so a night trip that can actually be **boarded** |
+| `C_2350_TUE` | C | TUE | 23:50 → **24:35** | shifted −86400; still running at 00:05, so a night trip that can actually be **boarded** |
 | `A_2350_WED` | A-out | WED | 23:50 → **24:06** | same-day trip whose times exceed 86400 |
-| `B_2345_TUE` | B | TUE | 23:45 → **24:03** | → **`B_2345_TUE_prev`**, shifted −86400 (first dep `-900`) |
+| `B_2345_TUE` | B | TUE | 23:45 → **24:03** | shifted **−86400** (first dep `-900`) |
 | `A_2200_TUE` | A-out | TUE | 22:00 → 22:16 | ends **before** 86400 → **must be dropped** |
 | `A_1000_SAT` / `B_1010_SAT` | A-out / B | SAT | 10:00 / 10:10 | |
 | `A_2350_FRI` | A-out | FRI | 23:50 → 24:06 | prev-day carry-over for **saturday** (first dep `-600`) |
@@ -191,8 +196,8 @@ Patterns (a "route" is an *exact* stop sequence, per the RAPTOR paper):
 
 | day | routes | trips | prev-day trips (first departure) |
 |---|---|---|---|
-| weekday | **10** | **17** | `B_2345_TUE_prev` at `-900`, `C_2350_TUE_prev` at `-600` |
-| saturday | 2 | 4 | `A_2350_FRI_prev` at `-600` |
+| weekday | **10** | **17** | `B_2345_TUE` at `-900`, `C_2350_TUE` at `-600` |
+| saturday | 2 | 4 | `A_2350_FRI` at `-600` |
 | sunday | 2 | 2 | none (Saturday's trips end before midnight) |
 
 On weekday the A-out pattern splits into **two** routes — `[A_0800, A_0830, A_2350_WED]`
@@ -201,6 +206,49 @@ separate route. The C pattern stays **one** route: its three trips
 (`-600`, `30000`, `31800`) are monotone at every stop.
 
 Loop route: `positions("L2") == [1, 3]`, `positions("L1") == [0, 4]`.
+
+---
+
+## `network/routes.csv` — 7 rows
+
+Supplies the short name riders actually see. Two hops:
+`routename_to_shortname` gives route_id → short_name, then `tripname_to_shortname`
+joins through `trips.csv` to give trip_id → short_name, which
+`finalize_timetable` uses to name each `Route` (from the **first trip of the group**).
+
+| route_id | short_name | pins |
+|---|---|---|
+| `A` | `1` | one name across **three** `Route` objects — the A-out overtaking split plus A-ret |
+| `B` | `2` | |
+| `C` | `3` | |
+| `D` | `4H` | **two route_ids sharing a short name** — the real feed duplicates `H` the same way |
+| `E` | `4H` | so anything keyed on the name merges lines D and E |
+| `F` | `5` | |
+| `L` | `6` | |
+| `W` | *(no row)* | a route_id absent from routes.csv → `Route.short_name == ""` |
+
+Consequences: `routename_to_shortname` → **7** entries; `tripname_to_shortname` → **22**
+of the 23 trips, because its `if route_id in routename_shortname` guard drops `W_0800`;
+and line W's route ends up unnamed, surfacing in the API as an `{"": ...}` key.
+
+### `upcoming` — lines catchable within 15 minutes
+
+`lines_nearby(tt, walkable_stops, at, at + 900)` → `{short_name: departure_second}`,
+over the stops walkable from the source (round 0), **not** the whole reachable set.
+
+| from | at | result |
+|---|---|---|
+| `A1` | 08:00 | `{"1": 28800}` |
+| `HUB_N` (walks to `HUB_S`, `B2`, `T2`) | 08:00 | `{"1": 29280, "2": 29580}` — 08:08 and 08:13 |
+| `A3` | 07:56 | `{"1": 29040}` — **08:04 via A-ret**, not the 08:11 A-out departure |
+| `C3` | 08:15 | `{}` — `C3` is where line 3 **ends** |
+| `D1` + `P_B` | 08:00 | `{"4H": 28800}` — D and E share a name; the earlier wins |
+| `W1` | 08:00 | `{"": 28800}` — line W has no routes.csv row |
+| `C1` | 00:00 | `{"3": 300}` — boards the previous-day night trip |
+
+The A3 and C3 rows are regression pins: `lines_nearby` used to keep the *first*
+departure it encountered rather than the earliest, and used to advertise boarding at a
+route's final stop.
 
 ---
 
@@ -256,7 +304,7 @@ With a 1700 s budget `C3` drops out.
 
 ### Night trip — from `C1` at `at=0` with a 2400 s budget
 
-The one journey that boards a **previous-day** trip. `C_2350_TUE_prev` passes `C1` at
+The one journey that boards a **previous-day** trip. `C_2350_TUE` passes `C1` at
 00:05 and `C3` at 00:35:
 
 | stop | arrival |
@@ -267,7 +315,7 @@ The one journey that boards a **previous-day** trip. `C_2350_TUE_prev` passes `C
 | `C3` | 00:35:00 |
 | `F1` | 00:36:40 (walk 100 s) |
 
-`B_2345_TUE_prev` is deliberately *not* boardable — its last departure is at `-180`, and
+`B_2345_TUE` is deliberately *not* boardable — its last departure is at `-180`, and
 the endpoints reject `at < 0`. It exists to pin the −86400 shift itself.
 
 Other useful sources:

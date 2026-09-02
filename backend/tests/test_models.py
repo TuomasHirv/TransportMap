@@ -10,10 +10,10 @@ import pytest
 from transport_map.models import Route, Timetable
 
 
-def line(stops, trips):
+def line(stops, trips, name=""):
     """A finalized single-route Timetable. trips are [(arrival, departure), ...]."""
     tt = Timetable()
-    tt.add_route("r0", stops, trips)
+    tt.add_route("r0", stops, trips, name)
     return tt.finalize()
 
 
@@ -70,17 +70,29 @@ class TestAddRoute:
     def test_rejects_a_trip_with_the_wrong_number_of_events(self):
         tt = Timetable()
         with pytest.raises(AssertionError, match="one event per route stop"):
-            tt.add_route("r0", ["A", "B"], [[(0, 0)]])
+            tt.add_route("r0", ["A", "B"], [[(0, 0)]], "1")
 
     def test_registers_the_stops(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]])
+        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]], "1")
         assert tt.stops == {"A", "B"}
 
     def test_accepts_any_iterable_of_trips(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B"], iter([iter([(0, 0), (60, 60)])]))
+        tt.add_route("r0", ["A", "B"], iter([iter([(0, 0), (60, 60)])]), "1")
         assert tt.routes["r0"].trips == [[(0, 0), (60, 60)]]
+
+    def test_stores_the_short_name(self):
+        """The name riders see -- what lines_nearby keys its answer on."""
+        tt = Timetable()
+        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]], "550")
+        assert tt.routes["r0"].short_name == "550"
+
+    def test_an_unnamed_route_is_allowed(self):
+        """A route_id missing from routes.csv yields "", not a crash."""
+        tt = Timetable()
+        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]], "")
+        assert tt.routes["r0"].short_name == ""
 
 
 class TestFinalize:
@@ -110,7 +122,7 @@ class TestFinalize:
 
     def test_does_not_duplicate_an_existing_self_footpath(self):
         tt = Timetable()
-        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]])
+        tt.add_route("r0", ["A", "B"], [[(0, 0), (60, 60)]], "1")
         tt.add_footpath("A", "A", 0, both=False)
         tt.finalize()
         assert tt.footpaths["A"].count(("A", 0)) == 1
@@ -123,7 +135,7 @@ class TestFinalize:
 
     def test_returns_self_for_chaining(self):
         tt = Timetable()
-        tt.add_route("r0", ["A"], [[(0, 0)]])
+        tt.add_route("r0", ["A"], [[(0, 0)]], "1")
         assert tt.finalize() is tt
 
 
@@ -156,3 +168,6 @@ class TestTimetableDefaults:
 
     def test_a_bare_route_has_no_index_until_finalize(self):
         assert Route("r0", ["A", "B"]).positions("A") == []
+
+    def test_short_name_defaults_to_empty(self):
+        assert Route("r0", ["A", "B"]).short_name == ""

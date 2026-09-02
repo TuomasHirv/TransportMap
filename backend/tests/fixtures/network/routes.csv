@@ -1,0 +1,8 @@
+route_id,agency_id,route_short_name,route_long_name,route_desc,route_type,route_url
+A,TM,1,"Alfaranta - Keskus - Epsilonranta",,3,
+B,TM,2,"Zetalahti - Keskus - Ääninen",,3,
+C,TM,3,"Eetantie - Iotakatu - Lambdaniemi",,3,
+D,TM,4H,"Nyytori - Myy-asema, laituri 1",,3,
+E,TM,4H,"Myy-asema, laituri 2 - Ksitie",,3,
+F,TM,5,"Theetaniemi - Psiilahti",,3,
+L,TM,6,"Rengaslinja Tautori - Fiikuja - Tautori",,3,
