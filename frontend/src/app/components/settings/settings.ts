@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, computed, inject } from '@angular/core';
 import { SettingsService } from '../../services/settings.service';
 
 @Component({
@@ -53,9 +53,29 @@ import { SettingsService } from '../../services/settings.service';
         (change)="s.transfers.set(+$any($event.target).value)"
       />
     </label>
+    <div>
+      @if (lines().length) {
+        <div class="flex flex-col gap-2">
+          <span class="text-sm font-medium text-slate-700">Lines you can walk to</span>
+          <div class="flex flex-wrap gap-1.5">
+            @for (l of lines(); track l.name) {
+              <span class="rounded-md bg-slate-800 px-2 py-1 text-xs font-semibold text-white">
+                {{ l.name }}
+                <span class="ml-1 font-normal opacity-70">{{ l.mins }} min</span>
+              </span>
+            }
+          </div>
+        </div>
+      }
+    </div>
   </div>`,
 })
 export class Settings {
   s = inject(SettingsService);
   days = ['weekday', 'saturday', 'sunday'] as const;
+  lines = computed(() =>
+    Object.entries(this.s.upcoming())
+      .map(([name, dep]) => ({ name, mins: Math.round((dep - this.s.at()) / 60) }))
+      .sort((a, b) => a.mins - b.mins),
+  );
 }

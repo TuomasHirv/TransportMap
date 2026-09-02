@@ -126,4 +126,4 @@ def isochrone(tt: Timetabledep, lat: float, lon: float, at: int, budget: int = 1
     geojson = to_geojson(build_bands(isochrone_stops, Geography, thresholds))
     log.info("%d stops -> geojson in %.2fs", len(stops), time.perf_counter() - t0)
     
-    return {"stops": stops, "bands": geojson}
+    return {"stops": stops, "bands": geojson, "upcoming": nearby_routes}

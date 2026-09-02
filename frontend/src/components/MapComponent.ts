@@ -58,9 +58,13 @@ export class MapComponent implements AfterViewInit {
       if (!day) return;
       if (!origin) return;
 
-      this.api
-        .query(origin.lat, origin.lng, at, budget, day, transfers)
-        .subscribe({ next: (stops) => this.draw(stops, origin, budget) });
+      this.api.query(origin.lat, origin.lng, at, budget, day, transfers).subscribe({
+        next: (res) => {
+          console.log(res);
+          this.draw(res, origin, budget);
+          this.s.upcoming.set(res.upcoming);
+        },
+      });
     });
   }
 

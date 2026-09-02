@@ -4,6 +4,7 @@ import { HttpClient } from '@angular/common/http';
 export interface ReachableResponse {
   stops: ReachableStop[];
   bands: GeoJSON.FeatureCollection<GeoJSON.MultiPolygon, BandProps>;
+  upcoming: Record<string, number>;
 }
 
 export interface BandProps {

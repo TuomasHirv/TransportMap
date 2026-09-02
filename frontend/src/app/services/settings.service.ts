@@ -6,6 +6,7 @@ export class SettingsService {
   time = signal('08:00');
   duration = signal(1800);
   transfers = signal(4);
+  upcoming = signal<Record<string, number>>({});
   at = computed(() => {
     const [h, m] = this.time().split(':').map(Number);
     return h * 3600 + m * 60;
