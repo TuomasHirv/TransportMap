@@ -3,6 +3,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
+import tracemalloc, gc, os, psutil
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -23,6 +24,7 @@ from .nearby_routes import lines_nearby
 from .parse_footpaths import load_stops
 from .parse_names import routename_to_shortname, tripname_to_shortname
 from .parse_routes import parse_routes_to_trips
+from .parse_date import filter_monday_thursday
 from .raptor import reachable
 
 log = logging.getLogger("uvicorn.error")
@@ -52,7 +54,10 @@ async def lifespan(app: FastAPI):
     #parents has stop_id -> parent_id
     #stop_names has stop_id -> stop_name.
     #coords has stop_id -> (lat, lon) of the stop.
-    all_trips = parse_routes_to_trips()
+    allowed_trips = filter_monday_thursday()
+    log.info("tid not in monday or thursday: %s", len(allowed_trips))
+    all_trips = parse_routes_to_trips(allowed_trips)
+    allowed_trips = None
     route_id_shortname = routename_to_shortname()
     log.info("route_id -> shortname lenght: %s", len(route_id_shortname))
     trip_id_shortname = tripname_to_shortname(route_id_shortname)
@@ -68,6 +73,11 @@ async def lifespan(app: FastAPI):
         log.info("loaded %d stops, %d routes", 
                  len(TIMETABLES[day].stops), 
                  len(TIMETABLES[day].routes))
+
+    all_trips = None
+    route_id_shortname = None
+    trip_id_shortname = None
+    gc.collect()
     yield
 
 app = FastAPI(title="Transport Map", lifespan=lifespan)

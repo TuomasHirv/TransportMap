@@ -17,10 +17,10 @@ DAY_IN_SECONDS = 86400
 
 
 def build_datamodel(all_trips, parents, stop_names, coords, trip_id_shortname, day_type = "weekday",
-                    on = None, calendar_path = None, trips_path = None):
+                    calendar_path = None, trips_path = None):
     """`on` pins the date the calendar window is evaluated against (default: today)."""
     t0 = time.perf_counter()
-    service_ids, prev_day_service_ids = service_id_for_day(day_type, on, calendar_path)
+    service_ids, prev_day_service_ids = service_id_for_day(day_type, calendar_path)
     accepted_trips, prev_accepted_trips = trips_from_services(
         service_ids, prev_day_service_ids, trips_path)
     # Morning trips are marked as >24:00:00 of the last day
@@ -35,7 +35,7 @@ def build_datamodel(all_trips, parents, stop_names, coords, trip_id_shortname, d
     log.info("Morning trips from prev day: %s", len(prev_day_night_trips))
     trips_by_daytype = curr_day_trips + prev_day_night_trips
 
-    log.info("Service ids: %s. Accepted trips: %s", len(service_ids), len(accepted_trips))
+    log.info("Service ids: %s. Accepted trips: %s", len(service_ids), len(trips_by_daytype))
     tt = create_timetable(trips_by_daytype, trip_id_shortname)
     
     tt.coords = coords
