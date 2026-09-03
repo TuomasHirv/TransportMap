@@ -27,7 +27,7 @@ step, no external routing API.
  
 **Backend** parses the GTFS feed once at startup and builds three timetables:
  
-1. `stop_times.txt` is read once into ~394k trips.
+1. `stop_times.txt` is read once into ~105k trips. Filtered by accepted days and current date.
 2. `calendar.txt` + `trips.txt` decide which services run on each day type.
 3. Trips are grouped into *routes* by identical stop sequence — the paper's
    definition, not GTFS's — which collapses ~24k weekday trips into ~950 routes.
@@ -108,9 +108,7 @@ Interactive docs at <http://127.0.0.1:8000/docs>.
  
 | Endpoint | Description |
 |---|---|
-| `GET /reachable` | Reachable stops and time remaining at each |
 | `GET /isochrone` | The same, plus banded isochrone polygons as GeoJSON and the lines departing nearby |
-| `GET /healthz` | 503 until the timetables have finished loading |
  
 Both take `lat`, `lon`, `at` (seconds after midnight), `budget` (seconds) and
 `day` (`weekday` \| `saturday` \| `sunday`).
@@ -175,7 +173,7 @@ frontend/
 - Timetables: [HSL open data](https://www.hsl.fi/en/hsl/open-data), CC BY 4.0
 - Coastline: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, ODbL
 - Basemap tiles: OpenStreetMap contributors
-- Outdoor features: [Maanmittauslaitos](https://www.maanmittauslaitos.fi/en) open data
+- Outdoor features: [Maanmittauslaitos](https://www.maanmittauslaitos.fi/en) open data (not yet included)
 ## Reference
  
 Delling, D., Pajor, T., & Werneck, R. (2012). *Round-Based Public Transit Routing.*
