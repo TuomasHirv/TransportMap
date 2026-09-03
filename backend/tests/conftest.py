@@ -13,6 +13,7 @@ import pytest
 
 from transport_map.build_datamodel import build_datamodel
 from transport_map.load_geojson import load_land
+from transport_map.parse_date import filter_monday_thursday
 from transport_map.parse_footpaths import load_stops
 from transport_map.parse_names import routename_to_shortname, tripname_to_shortname
 from transport_map.parse_routes import parse_routes_to_trips
@@ -28,9 +29,9 @@ CALENDAR_CSV = NETWORK / "calendar.csv"
 ROUTES_CSV = NETWORK / "routes.csv"
 LAND_GEOJSON = NETWORK / "land.geojson"
 
-# The fixture calendar is only valid 20260831..20261024.  Passing these dates as
-# `on=` keeps assertions correct forever; without them build_datamodel falls back
-# to date.today() and every trip silently disappears once the window passes.
+# The fixture calendar is only valid 20260831..20261024.  The window is now applied at
+# load time by filter_monday_thursday, so `on=` is passed there rather than to
+# build_datamodel; without it the fixtures would silently empty once the window passes.
 REFERENCE_DATES = {
     "weekday": date(2026, 9, 2),    # Wednesday
     "saturday": date(2026, 9, 5),
@@ -63,9 +64,29 @@ def stops_data():
 
 
 @pytest.fixture(scope="session")
-def raw_trips():
-    """[(trip_id, [(arrival, departure, stop_id), ...]), ...], not yet day-filtered."""
-    return parse_routes_to_trips(STOP_TIMES_CSV)
+def allowed_trips():
+    """The trips worth reading from stop_times.csv, as the app's lifespan computes them.
+
+    This is what keeps out-of-window services (SVC_EXPIRED) out of the timetables --
+    build_datamodel no longer checks the calendar window itself.
+    """
+    return filter_monday_thursday(
+        on=REFERENCE_DATES["weekday"], path=CALENDAR_CSV, trips_path=TRIPS_CSV
+    )
+
+
+@pytest.fixture(scope="session")
+def raw_trips(allowed_trips):
+    """[(trip_id, ((arrival, departure, stop_id), ...)), ...], pre-filtered by calendar
+    window exactly as production does it, but not yet split by day type."""
+    return parse_routes_to_trips(allowed_trips, STOP_TIMES_CSV)
+
+
+@pytest.fixture(scope="session")
+def unfiltered_trips():
+    """Every trip in the feed, skipping the load-time filter. Only for tests that pin
+    what build_datamodel does when it is handed unfiltered input."""
+    return parse_routes_to_trips(None, STOP_TIMES_CSV)
 
 
 @pytest.fixture(scope="session")
@@ -88,7 +109,6 @@ def build_timetable(raw_trips, stops_data, trip_shortnames):
     def _build(day_type="weekday"):
         return build_datamodel(
             raw_trips, parents, stop_names, coords, trip_shortnames, day_type,
-            on=REFERENCE_DATES[day_type],
             calendar_path=CALENDAR_CSV,
             trips_path=TRIPS_CSV,
         )

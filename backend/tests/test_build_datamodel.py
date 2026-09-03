@@ -9,6 +9,7 @@ import pytest
 
 from transport_map.build_datamodel import (
     DAY_IN_SECONDS,
+    build_datamodel,
     build_footpaths,
     build_patterns,
     close_footpaths,
@@ -358,6 +359,48 @@ class TestNightTrips:
         """Saturday's trips all finish before midnight, so there is nothing to carry."""
         sunday = build_timetable("sunday")
         assert [t[0][1] for r in sunday.routes.values() for t in r.trips if t[0][1] < 0] == []
+
+
+class TestPreFilteredInput:
+    """build_datamodel no longer checks the calendar window itself -- service_id_for_day
+    matches on the day flag alone. It relies on all_trips having been filtered at load
+    time by filter_monday_thursday, which is what conftest and the app's lifespan both
+    do. These tests pin that contract from both sides."""
+
+    def test_pre_filtered_input_excludes_the_expired_trip(self, weekday_tt):
+        departures = {t[0][1] for r in weekday_tt.routes.values() for t in r.trips}
+        assert 32400 not in departures  # A_0900_EXPIRED would depart at 09:00
+        assert sum(len(r.trips) for r in weekday_tt.routes.values()) == 17
+
+    def test_unfiltered_input_lets_the_expired_trip_through(
+        self, unfiltered_trips, stops_data, trip_shortnames, network_dir
+    ):
+        """The documented consequence of moving the window to the load layer: handed
+        every trip in the feed, build_datamodel builds one more than it should. This is
+        why the pre-filter is not optional."""
+        parents, stop_names, coords = stops_data
+        tt = build_datamodel(
+            unfiltered_trips, parents, stop_names, coords, trip_shortnames, "weekday",
+            calendar_path=network_dir / "calendar.csv",
+            trips_path=network_dir / "trips.csv",
+        )
+        departures = {t[0][1] for r in tt.routes.values() for t in r.trips}
+        assert 32400 in departures  # A_0900_EXPIRED, out of window since 2020
+        assert sum(len(r.trips) for r in tt.routes.values()) == 18
+
+    def test_a_monday_thursday_trip_never_appears_either_way(
+        self, weekday_tt, unfiltered_trips, stops_data, trip_shortnames, network_dir
+    ):
+        """Belt and braces: even unfiltered, SVC_MON_THU matches no day flag."""
+        parents, stop_names, coords = stops_data
+        tt = build_datamodel(
+            unfiltered_trips, parents, stop_names, coords, trip_shortnames, "weekday",
+            calendar_path=network_dir / "calendar.csv",
+            trips_path=network_dir / "trips.csv",
+        )
+        for timetable in (weekday_tt, tt):
+            departures = {t[0][1] for r in timetable.routes.values() for t in r.trips}
+            assert 39600 not in departures  # A_1100_MON_THU would depart at 11:00
 
 
 class TestDateFiltering:

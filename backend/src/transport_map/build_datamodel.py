@@ -18,7 +18,12 @@ DAY_IN_SECONDS = 86400
 
 def build_datamodel(all_trips, parents, stop_names, coords, trip_id_shortname, day_type = "weekday",
                     calendar_path = None, trips_path = None):
-    """`on` pins the date the calendar window is evaluated against (default: today)."""
+    """Builds one day type's Timetable from trips that have ALREADY been filtered.
+
+    The calendar's start_date/end_date window is applied at load time by
+    filter_monday_thursday, not here -- service_id_for_day only matches on the day
+    flag. Passing unfiltered trips therefore lets out-of-window services through.
+    """
     t0 = time.perf_counter()
     service_ids, prev_day_service_ids = service_id_for_day(day_type, calendar_path)
     accepted_trips, prev_accepted_trips = trips_from_services(

@@ -22,3 +22,4 @@ A,SVC_FRI,A_2350_FRI,"Epsilonranta, via Keskus",0,108,A_1,1,2,3
 A,SVC_SUN,A_1200_SUN,"Epsilonranta, via Keskus",0,109,A_1,1,2,3
 B,SVC_DAILY,B_1200_DAILY,"Ääninen",0,205,B_1,1,2,3
 A,SVC_EXPIRED,A_0900_EXPIRED,"Epsilonranta, via Keskus",0,110,A_1,1,2,3
+A,SVC_MON_THU,A_1100_MON_THU,"Epsilonranta, via Keskus",0,111,A_1,1,2,3

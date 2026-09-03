@@ -33,7 +33,10 @@ def trips_from_services(service_ids, prev_day_service_ids, path=None):
                 prev_accepted_trips.add(r["trip_id"].strip())
         return accepted_trips, prev_accepted_trips
 
-def filter_monday_thursday(on=None, path=None):
+def filter_monday_thursday(on=None, path=None, trips_path=None):
+    """Trips worth reading from stop_times.csv: those on a service running inside the
+    calendar window on one of the five days the three day types consult. Monday and
+    Thursday are the two that are never needed, hence the name."""
     filter = ["tuesday","wednesday", "friday", "saturday", "sunday"]
     ymd = (on or date.today()).strftime("%Y%m%d")
 
@@ -46,5 +49,5 @@ def filter_monday_thursday(on=None, path=None):
                 if r[day].strip() == "1":
                     service_ids.add(r["service_id"].strip())
                     continue
-    filtered_trips, _ = trips_from_services(service_ids, set())
+    filtered_trips, _ = trips_from_services(service_ids, set(), trips_path)
     return filtered_trips

@@ -1,4 +1,11 @@
-"""Tier 2 -- parse_routes_to_trips(): stop_times.csv -> [(trip_id, [(arr, dep, stop)])]."""
+"""Tier 2 -- parse_routes_to_trips(): stop_times.csv -> [(trip_id, ((arr, dep, stop), ...))].
+
+Since the memory work, the reader takes the set of trip ids worth keeping and skips
+everything else, and each trip's events come back as a tuple of tuples rather than a
+list so they cost less to hold.
+"""
+
+import pytest
 
 from transport_map import parse_routes
 from transport_map.parse_routes import parse_routes_to_trips
@@ -6,7 +13,9 @@ from transport_map.parse_routes import parse_routes_to_trips
 
 class TestParseRoutesToTrips:
     def test_trip_count(self, raw_trips):
-        assert len(raw_trips) == 23
+        """22 of the feed's 24 trips: the load-time filter drops the expired service
+        and the monday/thursday-only one before any row is parsed."""
+        assert len(raw_trips) == 22
 
     def test_trip_ids_are_unique(self, raw_trips):
         """Each trip appears once, which only holds while the file stays grouped."""
@@ -21,13 +30,13 @@ class TestParseRoutesToTrips:
 
     def test_events_are_arrival_departure_stop(self, raw_trips):
         events = dict(raw_trips)["A_0800"]
-        assert events == [
+        assert events == (
             (28800, 28800, "A1"),
             (29040, 29040, "A2"),
             (29280, 29280, "HUB_N"),
             (29520, 29520, "A3"),
             (29760, 29760, "A4"),
-        ]
+        )
 
     def test_times_are_parsed_to_integer_seconds(self, raw_trips):
         for arr, dep, stop in dict(raw_trips)["A_0800"]:
@@ -60,7 +69,7 @@ class TestContiguityRequirement:
         """groupby only groups *adjacent* rows. A feed whose trips are interleaved
         parses into one group per row with no error at all -- this is why the real
         stop_times.csv must stay sorted by trip_id."""
-        trips = parse_routes_to_trips(unsorted_dir / "stop_times.csv")
+        trips = parse_routes_to_trips(None, unsorted_dir / "stop_times.csv")
         assert len(trips) == 10
         assert all(len(events) == 1 for _, events in trips)
         assert [tid for tid, _ in trips[:4]] == ["A_0800", "A_0805", "A_0800", "A_0805"]
@@ -73,8 +82,65 @@ class TestContiguityRequirement:
 
 class TestPathArgument:
     def test_explicit_path_is_used(self, network_dir):
-        assert len(parse_routes_to_trips(network_dir / "stop_times.csv")) == 23
+        assert len(parse_routes_to_trips(None, network_dir / "stop_times.csv")) == 24
 
     def test_falls_back_to_the_module_constant(self, monkeypatch, network_dir):
         monkeypatch.setattr(parse_routes, "STOP_TIMES_PATH", network_dir / "stop_times.csv")
-        assert len(parse_routes_to_trips()) == 23
+        assert len(parse_routes_to_trips()) == 24
+
+
+class TestAllowedTrips:
+    """The memory work: the reader is handed the set of trips worth keeping and skips
+    every other trip's rows instead of building them and discarding them later."""
+
+    def test_only_listed_trips_are_parsed(self, network_dir):
+        trips = parse_routes_to_trips({"A_0800", "B_0810"}, network_dir / "stop_times.csv")
+        assert {tid for tid, _ in trips} == {"A_0800", "B_0810"}
+
+    def test_an_empty_set_parses_nothing(self, network_dir):
+        assert parse_routes_to_trips(set(), network_dir / "stop_times.csv") == []
+
+    def test_none_means_load_everything(self, network_dir):
+        assert len(parse_routes_to_trips(None, network_dir / "stop_times.csv")) == 24
+
+    def test_ids_that_are_not_in_the_feed_are_harmless(self, network_dir):
+        trips = parse_routes_to_trips({"A_0800", "NOPE"}, network_dir / "stop_times.csv")
+        assert [tid for tid, _ in trips] == ["A_0800"]
+
+    def test_skipped_trips_are_not_materialised(self, network_dir):
+        """The whole point: a filtered read must cost less than an unfiltered one."""
+        one = parse_routes_to_trips({"A_0800"}, network_dir / "stop_times.csv")
+        every = parse_routes_to_trips(None, network_dir / "stop_times.csv")
+        assert len(one) == 1
+        assert sum(len(ev) for _, ev in one) < sum(len(ev) for _, ev in every)
+
+    def test_the_filter_is_what_excludes_the_expired_trip(self, raw_trips, unfiltered_trips):
+        ids, all_ids = {t for t, _ in raw_trips}, {t for t, _ in unfiltered_trips}
+        assert all_ids - ids == {"A_0900_EXPIRED", "A_1100_MON_THU"}
+
+
+class TestMemoryRepresentation:
+    def test_events_are_tuples_not_lists(self, raw_trips):
+        """Tuples are immutable and smaller; nothing downstream mutates them."""
+        _, events = raw_trips[0]
+        assert isinstance(events, tuple)
+        assert all(isinstance(e, tuple) for e in events)
+
+    def test_stop_ids_are_interned(self, raw_trips):
+        """sys.intern means every mention of a stop shares one string object rather
+        than one per stop_time row -- 11 M rows of duplicated ids otherwise."""
+        by_id = dict(raw_trips)
+        a = next(s for _, _, s in by_id["A_0800"] if s == "HUB_N")
+        b = next(s for _, _, s in by_id["A_R_0800"] if s == "HUB_N")
+        assert a is b
+
+    def test_repeated_times_parse_to_equal_values(self, raw_trips):
+        """parse_time is memoised per read; the cache must not change what it returns."""
+        by_id = dict(raw_trips)
+        assert by_id["A_0800"][0][0] == by_id["A_0800"][0][1] == 28800
+        assert by_id["L_0800"][0][0] == 28800  # a different trip, same clock string
+
+    @pytest.mark.parametrize(("trip", "index", "seconds"),
+                             [("A_2350_WED", -1, 86760), ("C_2350_TUE", -1, 88500)])
+    def test_after_midnight_times_survive_memoisation(self, raw_trips, trip, index, seconds):
+        assert dict(raw_trips)[trip][index][0] == seconds

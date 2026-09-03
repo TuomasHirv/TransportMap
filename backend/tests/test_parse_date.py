@@ -1,4 +1,9 @@
-"""Tier 2 -- calendar.csv / trips.csv filtering into (today's, yesterday's) services."""
+"""Tier 2 -- calendar.csv / trips.csv filtering into (today's, yesterday's) services.
+
+Since the memory work the calendar's start_date/end_date window is applied by
+`filter_monday_thursday` at load time, not by `service_id_for_day`. The two are tested
+separately below, and `TestPreFilterIsWhatEnforcesTheWindow` pins how they combine.
+"""
 
 from datetime import date
 
@@ -8,6 +13,7 @@ from transport_map import parse_date
 from transport_map.parse_date import (
     DAY_FLAG,
     PREV_DAY_FLAG,
+    filter_monday_thursday,
     service_id_for_day,
     trips_from_services,
 )
@@ -23,65 +29,130 @@ def trips_csv(network_dir):
     return network_dir / "trips.csv"
 
 
+@pytest.fixture
+def feed(calendar, trips_csv):
+    """The two paths filter_monday_thursday needs, as keyword arguments."""
+    return {"path": calendar, "trips_path": trips_csv}
+
+
 class TestServiceIdForDay:
     @pytest.mark.parametrize(
         ("day", "services", "prev"),
         [
-            ("weekday", {"SVC_WED", "SVC_DAILY"}, {"SVC_TUE"}),
+            ("weekday", {"SVC_WED", "SVC_DAILY", "SVC_EXPIRED"}, {"SVC_TUE"}),
             ("saturday", {"SVC_SAT", "SVC_DAILY"}, {"SVC_FRI"}),
             ("sunday", {"SVC_SUN", "SVC_DAILY"}, {"SVC_SAT"}),
         ],
     )
-    def test_each_day_type(self, calendar, reference_dates, day, services, prev):
-        assert service_id_for_day(day, reference_dates[day], calendar) == (services, prev)
+    def test_each_day_type(self, calendar, day, services, prev):
+        assert service_id_for_day(day, calendar) == (services, prev)
 
     def test_weekday_means_wednesday(self):
         assert DAY_FLAG["weekday"] == "wednesday"
         assert PREV_DAY_FLAG["weekday"] == "tuesday"
 
-    def test_prev_day_service_must_not_also_run_today(self, calendar, reference_dates):
+    def test_matches_on_the_day_flag_only(self, calendar):
+        """It no longer looks at start_date/end_date, so SVC_EXPIRED -- which runs on
+        Wednesdays but whose window closed in 2020 -- comes back here. The window is
+        enforced earlier, by filter_monday_thursday."""
+        services, _ = service_id_for_day("weekday", calendar)
+        assert "SVC_EXPIRED" in services
+
+    def test_ignores_services_running_only_on_unconsulted_days(self, calendar):
+        """SVC_MON_THU runs Monday and Thursday, neither of which is a day flag."""
+        for day in ("weekday", "saturday", "sunday"):
+            services, prev = service_id_for_day(day, calendar)
+            assert "SVC_MON_THU" not in services | prev
+
+    def test_prev_day_service_must_not_also_run_today(self, calendar):
         """service_id_for_day `continue`s after the main-day match, so a service running
         both Tuesday and Wednesday would never reach the prev-day set. SVC_DAILY is
         exactly that case."""
-        services, prev = service_id_for_day("weekday", reference_dates["weekday"], calendar)
+        services, prev = service_id_for_day("weekday", calendar)
         assert "SVC_DAILY" in services
         assert "SVC_DAILY" not in prev
 
-    def test_a_service_appears_in_at_most_one_set(self, calendar, reference_dates):
-        services, prev = service_id_for_day("weekday", reference_dates["weekday"], calendar)
+    def test_a_service_appears_in_at_most_one_set(self, calendar):
+        services, prev = service_id_for_day("weekday", calendar)
         assert services & prev == set()
 
     def test_unknown_day_type_raises(self, calendar):
         with pytest.raises(KeyError):
-            service_id_for_day("caturday", date(2026, 9, 2), calendar)
+            service_id_for_day("caturday", calendar)
 
 
-class TestDateWindow:
+class TestFilterMondayThursday:
+    """The memory feature: the set of trips worth reading out of stop_times.csv."""
+
+    def test_keeps_the_days_the_three_day_types_consult(self, feed):
+        """DAY_FLAG and PREV_DAY_FLAG between them use tue/wed/fri/sat/sun. Monday and
+        Thursday are the two nothing ever asks for -- hence the name."""
+        allowed = filter_monday_thursday(on=date(2026, 9, 2), **feed)
+        assert {"A_0800", "B_2345_TUE", "A_2350_FRI", "A_1000_SAT", "A_1200_SUN"} <= allowed
+
+    def test_drops_a_service_running_only_on_monday_and_thursday(self, feed):
+        allowed = filter_monday_thursday(on=date(2026, 9, 2), **feed)
+        assert "A_1100_MON_THU" not in allowed
+
+    def test_drops_a_service_outside_the_calendar_window(self, feed):
+        """This is the only place the window is checked now."""
+        allowed = filter_monday_thursday(on=date(2026, 9, 2), **feed)
+        assert "A_0900_EXPIRED" not in allowed
+
+    def test_keeps_everything_else(self, feed):
+        assert len(filter_monday_thursday(on=date(2026, 9, 2), **feed)) == 22  # of 24
+
     @pytest.mark.parametrize(
-        ("on", "expected"),
+        ("on", "count"),
         [
-            (date(2026, 8, 30), set()),  # one day before start_date
-            (date(2026, 8, 31), {"SVC_WED", "SVC_DAILY"}),  # start_date, inclusive
-            (date(2026, 10, 24), {"SVC_WED", "SVC_DAILY"}),  # end_date, inclusive
-            (date(2026, 10, 25), set()),  # one day after end_date
+            (date(2026, 8, 30), 0),   # day before start_date
+            (date(2026, 8, 31), 22),  # start_date, inclusive
+            (date(2026, 10, 24), 22),  # end_date, inclusive
+            (date(2026, 10, 25), 0),  # day after end_date
         ],
     )
-    def test_window_is_inclusive_at_both_ends(self, calendar, on, expected):
-        assert service_id_for_day("weekday", on, calendar)[0] == expected
+    def test_the_window_is_inclusive_at_both_ends(self, feed, on, count):
+        assert len(filter_monday_thursday(on=on, **feed)) == count
 
-    def test_expired_service_is_never_returned(self, calendar, reference_dates):
-        """SVC_EXPIRED runs on wednesdays but its window closed in 2020."""
-        for day, on in reference_dates.items():
-            services, prev = service_id_for_day(day, on, calendar)
-            assert "SVC_EXPIRED" not in services | prev
+    @pytest.mark.parametrize("day", ["weekday", "saturday", "sunday"])
+    def test_is_a_superset_of_what_each_day_type_needs(self, feed, calendar, trips_csv, day):
+        """The property that makes the optimisation safe: nothing a day type will ask
+        for may be missing from what was loaded. Editing the day list would break this
+        long before anyone noticed a missing bus."""
+        services, prev = service_id_for_day(day, calendar)
+        accepted, prev_accepted = trips_from_services(services, prev, trips_csv)
+        needed = accepted | prev_accepted
+        allowed = filter_monday_thursday(on=date(2026, 9, 2), **feed)
+        # SVC_EXPIRED is the one thing service_id_for_day asks for that the window
+        # legitimately withholds.
+        assert (needed - allowed) <= {"A_0900_EXPIRED"}
 
-    def test_the_date_only_gates_the_window_not_the_weekday(self, calendar):
-        """`on` is checked against start_date/end_date only -- the day-of-week comes from
-        day_type. Passing a Monday with day_type="weekday" still returns Wednesday
-        services. Documented behaviour, and why build_datamodel needs `on` threaded."""
-        monday = date(2026, 8, 31)
-        assert monday.strftime("%A") == "Monday"
-        assert service_id_for_day("weekday", monday, calendar)[0] == {"SVC_WED", "SVC_DAILY"}
+    def test_defaults_to_today(self, feed):
+        """Without `on` it uses date.today(), which is why the fixtures pass one."""
+        assert isinstance(filter_monday_thursday(**feed), set)
+
+    def test_honours_trips_path(self, calendar, trips_csv):
+        """Without its own trips_path this reached straight past the fixture feed into
+        data/trips.csv, which does not exist in CI."""
+        assert filter_monday_thursday(on=date(2026, 9, 2), path=calendar,
+                                      trips_path=trips_csv)
+
+    def test_falls_back_to_the_module_constants(self, monkeypatch, calendar, trips_csv):
+        monkeypatch.setattr(parse_date, "CALENDAR_PATH", calendar)
+        monkeypatch.setattr(parse_date, "TRIPS_PATH", trips_csv)
+        assert len(filter_monday_thursday(on=date(2026, 9, 2))) == 22
+
+
+class TestPreFilterIsWhatEnforcesTheWindow:
+    """How the two halves combine. build_datamodel intersects the day-type trips with
+    whatever was loaded, so the window only bites if the load was filtered."""
+
+    def test_the_intersection_excludes_the_expired_trip(self, calendar, trips_csv, feed):
+        services, prev = service_id_for_day("weekday", calendar)
+        accepted, _ = trips_from_services(services, prev, trips_csv)
+        allowed = filter_monday_thursday(on=date(2026, 9, 2), **feed)
+        assert "A_0900_EXPIRED" in accepted          # the day flag matches
+        assert "A_0900_EXPIRED" not in accepted & allowed  # the window does not
 
 
 class TestTripsFromServices:
@@ -91,32 +162,33 @@ class TestTripsFromServices:
         assert "B_2345_TUE" in prev
         assert accepted & prev == set()
 
-    def test_weekday_accepts_the_wed_and_daily_trips(self, calendar, trips_csv, reference_dates):
-        services, prev = service_id_for_day("weekday", reference_dates["weekday"], calendar)
+    def test_weekday_accepts_the_wed_and_daily_trips(self, calendar, trips_csv):
+        services, prev = service_id_for_day("weekday", calendar)
         accepted, prev_accepted = trips_from_services(services, prev, trips_csv)
-        assert len(accepted) == 15  # 14 on SVC_WED plus B_1200_DAILY
+        # 14 on SVC_WED, B_1200_DAILY, and A_0900_EXPIRED -- the window is not applied here
+        assert len(accepted) == 16
         assert prev_accepted == {"A_2200_TUE", "B_2345_TUE", "C_2350_TUE"}
 
-    def test_daily_service_trips_are_accepted_every_day(self, calendar, trips_csv, reference_dates):
-        for day, on in reference_dates.items():
-            services, prev = service_id_for_day(day, on, calendar)
+    def test_daily_service_trips_are_accepted_every_day(self, calendar, trips_csv):
+        for day in ("weekday", "saturday", "sunday"):
+            services, prev = service_id_for_day(day, calendar)
             accepted, _ = trips_from_services(services, prev, trips_csv)
             assert "B_1200_DAILY" in accepted
 
-    def test_expired_trip_is_never_accepted(self, calendar, trips_csv, reference_dates):
-        for day, on in reference_dates.items():
-            services, prev = service_id_for_day(day, on, calendar)
+    def test_a_monday_thursday_trip_is_never_accepted(self, calendar, trips_csv):
+        for day in ("weekday", "saturday", "sunday"):
+            services, prev = service_id_for_day(day, calendar)
             accepted, prev_accepted = trips_from_services(services, prev, trips_csv)
-            assert "A_0900_EXPIRED" not in accepted | prev_accepted
+            assert "A_1100_MON_THU" not in accepted | prev_accepted
 
     def test_unmatched_services_yield_nothing(self, trips_csv):
         assert trips_from_services(set(), set(), trips_csv) == (set(), set())
 
 
 class TestPathArguments:
-    def test_falls_back_to_the_module_constants(self, monkeypatch, network_dir, reference_dates):
+    def test_falls_back_to_the_module_constants(self, monkeypatch, network_dir):
         monkeypatch.setattr(parse_date, "CALENDAR_PATH", network_dir / "calendar.csv")
         monkeypatch.setattr(parse_date, "TRIPS_PATH", network_dir / "trips.csv")
-        services, prev = service_id_for_day("weekday", reference_dates["weekday"])
-        assert services == {"SVC_WED", "SVC_DAILY"}
-        assert len(trips_from_services(services, prev)[0]) == 15
+        services, prev = service_id_for_day("weekday")
+        assert services == {"SVC_WED", "SVC_DAILY", "SVC_EXPIRED"}
+        assert len(trips_from_services(services, prev)[0]) == 16

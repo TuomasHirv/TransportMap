@@ -22,9 +22,10 @@ path, so the reference dates below are applied for you.
 
 ## Reference dates
 
-The calendar window is `20260831`–`20261024`. `build_datamodel` falls back to
-`date.today()`, which would silently empty every timetable once that window passes, so
-tests pass `on=` explicitly (`conftest.REFERENCE_DATES`):
+The calendar window is `20260831`–`20261024`. It is checked by
+`filter_monday_thursday` at load time, which falls back to `date.today()` and would
+silently empty every timetable once the window passes, so the fixtures pass `on=`
+explicitly (`conftest.REFERENCE_DATES`):
 
 | day_type | date | weekday | prev-day flag |
 |---|---|---|---|
@@ -120,7 +121,7 @@ Assert derived walk seconds with a small tolerance (`abs=2`) — they come from
 
 ---
 
-## `network/calendar.csv` — 7 services
+## `network/calendar.csv` — 8 services
 
 | service_id | days | window | pins |
 |---|---|---|---|
@@ -130,23 +131,56 @@ Assert derived walk seconds with a small tolerance (`abs=2`) — they come from
 | `SVC_SUN` | sunday | 20260831–20261024 | |
 | `SVC_FRI` | friday **only** | 20260831–20261024 | prev-day for saturday |
 | `SVC_DAILY` | all seven | 20260831–20261024 | appears in all three day types |
-| `SVC_EXPIRED` | wednesday | **20200101–20201231** | outside the window → always excluded |
+| `SVC_EXPIRED` | wednesday | **20200101–20201231** | outside the window → dropped by the **load-time filter** |
+| `SVC_MON_THU` | monday + thursday | 20260831–20261024 | the two days no day type consults → dropped by the **load-time filter** |
 
 `SVC_TUE` must be Tuesday-and-not-Wednesday: `service_id_for_day` `continue`s past the
 prev-day check for any service already matched by the main day flag, so a
 Tuesday+Wednesday service would never land in the prev-day set.
 
-`service_id_for_day(day, on=REFERENCE_DATES[day])` returns:
+`service_id_for_day(day)` returns (**no date filtering** -- see below):
 
 | day | service_ids | prev_day_service_ids |
 |---|---|---|
-| weekday | `SVC_WED`, `SVC_DAILY` | `SVC_TUE` |
+| weekday | `SVC_WED`, `SVC_DAILY`, `SVC_EXPIRED` | `SVC_TUE` |
 | saturday | `SVC_SAT`, `SVC_DAILY` | `SVC_FRI` |
 | sunday | `SVC_SUN`, `SVC_DAILY` | `SVC_SAT` |
 
 ---
 
-## `network/trips.csv` + `stop_times.csv` — 23 trips, 98 stop_time rows
+## The load-time filter
+
+`filter_monday_thursday(on, path, trips_path)` decides which trips are worth reading out
+of `stop_times.csv` at all. It is the **only** place the calendar's
+`start_date`/`end_date` window is checked -- `service_id_for_day` matches on the day flag
+alone, so `build_datamodel` is no longer safe on unfiltered input.
+
+It keeps services running on tuesday, wednesday, friday, saturday or sunday: exactly the
+union of `DAY_FLAG` and `PREV_DAY_FLAG`. Monday and Thursday are the two days no day type
+ever consults, which is where the name comes from.
+
+On this feed, with `on=2026-09-02`, it keeps **22 of 24** trips:
+
+| dropped | why |
+|---|---|
+| `A_0900_EXPIRED` | its service's window closed in 2020 |
+| `A_1100_MON_THU` | `SVC_MON_THU` runs only on the two unconsulted days |
+
+Window boundaries are inclusive: `20260830` → 0 trips, `20260831` → 22, `20261024` → 22,
+`20261025` → 0.
+
+Fixtures follow the production pipeline: `allowed_trips` → `raw_trips`
+(`parse_routes_to_trips(allowed, ...)`), so the timetable counts below are unchanged.
+`unfiltered_trips` skips the filter and exists only to pin what `build_datamodel` does
+with unfiltered input -- **18** weekday trips instead of 17, with `A_0900_EXPIRED`
+present.
+
+Parsed trips are `(trip_id, ((arr, dep, stop), ...))` -- tuples, not lists -- and stop
+ids are passed through `sys.intern`, so every mention of a stop shares one string object.
+
+---
+
+## `network/trips.csv` + `stop_times.csv` — 24 trips, 103 stop_time rows
 
 Previous-day trips keep their **original trip_id** (they used to gain a `_prev` suffix).
 That is deliberate: `finalize_timetable` names each route via
@@ -227,8 +261,8 @@ joins through `trips.csv` to give trip_id → short_name, which
 | `L` | `6` | |
 | `W` | *(no row)* | a route_id absent from routes.csv → `Route.short_name == ""` |
 
-Consequences: `routename_to_shortname` → **7** entries; `tripname_to_shortname` → **22**
-of the 23 trips, because its `if route_id in routename_shortname` guard drops `W_0800`;
+Consequences: `routename_to_shortname` → **7** entries; `tripname_to_shortname` → **23**
+of the 24 trips, because its `if route_id in routename_shortname` guard drops `W_0800`;
 and line W's route ends up unnamed, surfacing in the API as an `{"": ...}` key.
 
 ### `upcoming` — lines catchable within 15 minutes

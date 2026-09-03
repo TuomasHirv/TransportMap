@@ -13,14 +13,14 @@ log = logging.getLogger("uvicorn.error")
 def parse_routes(reader, ARR, DEP, STOP, TRIP, allowed_trips):
     """Groups the stops into a list of (trip_id, stops) tuples.
     (trip_id, ((arrival_time, departure_time, stop_id), ... for all stops))
-    Only trips whose id is in allowed_trips are kept."""
+    Only trips whose id is in allowed_trips are kept; None keeps every trip."""
     to_time = lru_cache(maxsize=None)(parse_time)
 
     trips = [
         (tid, tuple((to_time(r[ARR]), to_time(r[DEP]), intern(r[STOP]))
                     for r in group))
         for tid, group in groupby(reader, key=lambda r: r[TRIP])
-        if tid in allowed_trips
+        if allowed_trips is None or tid in allowed_trips
     ]
     log.info("%s amount of trips, %s distinct times",
              len(trips), to_time.cache_info().currsize)

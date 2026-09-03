@@ -58,14 +58,14 @@ class TestTripNameToShortName:
 
     def test_every_trip_of_a_line_gets_the_same_name(self, trip_shortnames):
         a_trips = {k: v for k, v in trip_shortnames.items() if k.startswith("A_")}
-        assert len(a_trips) == 10
+        assert len(a_trips) == 11
         assert set(a_trips.values()) == {"1"}
 
     def test_drops_trips_whose_route_is_not_in_routes_csv(self, trip_shortnames):
         """W_0800 is a real trip, but line W has no routes.csv row, so the join skips
         it and its Route ends up with an empty short_name."""
         assert "W_0800" not in trip_shortnames
-        assert len(trip_shortnames) == 22  # 23 trips in the feed, minus W_0800
+        assert len(trip_shortnames) == 23  # 24 trips in the feed, minus W_0800
 
     def test_night_trips_are_included(self, trip_shortnames):
         """Prev-day trips keep their original trip_id precisely so this lookup hits."""
@@ -82,7 +82,7 @@ class TestTripNameToShortName:
 class TestPathArguments:
     def test_explicit_paths_are_used(self, routes_csv, trips_csv):
         names = routename_to_shortname(routes_csv)
-        assert len(tripname_to_shortname(names, trips_csv)) == 22
+        assert len(tripname_to_shortname(names, trips_csv)) == 23
 
     def test_falls_back_to_the_module_constants(self, monkeypatch, routes_csv, trips_csv):
         """The constants are imported by value, so they must be patched on parse_names
@@ -91,4 +91,4 @@ class TestPathArguments:
         monkeypatch.setattr(parse_names, "TRIPS_PATH", trips_csv)
         names = routename_to_shortname()
         assert len(names) == 7
-        assert len(tripname_to_shortname(names)) == 22
+        assert len(tripname_to_shortname(names)) == 23

@@ -1,9 +1,9 @@
+import gc
 import logging
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Literal
-import tracemalloc, gc, os, psutil
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,10 +21,10 @@ from .draw_isochrone import build_bands, to_geojson
 from .load_geojson import load_land
 from .models import Timetable
 from .nearby_routes import lines_nearby
+from .parse_date import filter_monday_thursday
 from .parse_footpaths import load_stops
 from .parse_names import routename_to_shortname, tripname_to_shortname
 from .parse_routes import parse_routes_to_trips
-from .parse_date import filter_monday_thursday
 from .raptor import reachable
 
 log = logging.getLogger("uvicorn.error")
