@@ -35,28 +35,11 @@ TIMETABLES: dict[str, Timetable] = {}
 
 Geography = None
 
-import resource
-
-def mem(label):
-    try:
-        rss = 0
-        with open("/proc/self/status") as fh:
-            for line in fh:
-                if line.startswith("VmRSS:"):
-                    rss = int(line.split()[1]) / 1000      # kB -> MB
-                    break
-        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1000
-        log.info("MEM %-22s rss %6.1f MB | peak %6.1f MB", label, rss, peak)
-    except Exception as exc:
-        log.warning("MEM %s unavailable: %s", label, exc)
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("Loading land.geojson from: %s", Path(*LAND_GEOJSON.parts[-3:]))
     global Geography
-    mem("start")
     Geography = load_land()
-    mem("Geography loaded")
     log.info("Building datamodel from %s, %s, %s, %s, %s",
              Path(*STOPS_PATH.parts[-3:]),
              Path(*STOP_TIMES_PATH.parts[-3:]),
@@ -72,39 +55,31 @@ async def lifespan(app: FastAPI):
     #stop_names has stop_id -> stop_name.
     #coords has stop_id -> (lat, lon) of the stop.
     allowed_trips, prev_allowed_trips = filter_out_monday_thursday()
-    mem("Day filters")
     log.info("tid not in monday or thursday: %s", len(allowed_trips))
     all_trips = parse_routes_to_trips(allowed_trips, prev_allowed_trips)
-    mem("Trips found")
     allowed_trips = None
     route_id_shortname = routename_to_shortname()
-    mem("Route id shortnames")
     log.info("route_id -> shortname lenght: %s", len(route_id_shortname))
     keep = {tid for tid, _ in all_trips}
     trip_id_shortname = tripname_to_shortname(route_id_shortname, keep)
     route_id_shortname = None
     keep = None
     gc.collect()
-    mem("trip id shortnames")
     log.info("trip_id -> shortname lenght: %s", len(trip_id_shortname))
     parents, stop_names, coords = load_stops()
-    mem("load_stops")
 
     log.info("Read in %.2fs", time.perf_counter() - t0)
     for day in ["weekday", "saturday", "sunday"]:
         log.info("Building for: %s", day)
         TIMETABLES[day] = build_datamodel(all_trips, parents, stop_names, coords,
                                           trip_id_shortname, day)
-        mem(day)
         log.info("loaded %d stops, %d routes", 
                  len(TIMETABLES[day].stops), 
                  len(TIMETABLES[day].routes))
-    mem("TTs built")
     all_trips = None
     route_id_shortname = None
     trip_id_shortname = None
     gc.collect()
-    mem("End")
     yield
 
 app = FastAPI(title="Transport Map", lifespan=lifespan)

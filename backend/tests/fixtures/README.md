@@ -23,7 +23,7 @@ path, so the reference dates below are applied for you.
 ## Reference dates
 
 The calendar window is `20260831`–`20261024`. It is checked by
-`filter_monday_thursday` at load time, which falls back to `date.today()` and would
+`filter_out_monday_thursday` at load time, which falls back to `date.today()` and would
 silently empty every timetable once the window passes, so the fixtures pass `on=`
 explicitly (`conftest.REFERENCE_DATES`):
 
@@ -150,37 +150,56 @@ Tuesday+Wednesday service would never land in the prev-day set.
 
 ## The load-time filter
 
-`filter_monday_thursday(on, path, trips_path)` decides which trips are worth reading out
-of `stop_times.csv` at all. It is the **only** place the calendar's
-`start_date`/`end_date` window is checked -- `service_id_for_day` matches on the day flag
-alone, so `build_datamodel` is no longer safe on unfiltered input.
+`filter_out_monday_thursday(on, path, trips_path)` decides which trips are worth reading
+out of `stop_times.csv`, and returns **two** sets:
 
-It keeps services running on tuesday, wednesday, friday, saturday or sunday: exactly the
-union of `DAY_FLAG` and `PREV_DAY_FLAG`. Monday and Thursday are the two days no day type
-ever consults, which is where the name comes from.
+| set | services | how `parse_routes` treats them |
+|---|---|---|
+| `allowed` | on a current-day flag — wed / sat / sun | kept **whole** |
+| `prev_allowed` | *only* on a previous-day flag — tue / fri | kept **only if the trip runs past midnight** |
 
-On this feed, with `on=2026-09-02`, it keeps **22 of 24** trips:
+The second set is the newer saving. A previous day is consulted for exactly one reason —
+trips spilling past 24:00 into the day being built — so the rest of that day's service is
+never parsed at all. On the real feed this drops trips held in memory from 105 484 to
+**58 690 (−44%)** with byte-identical timetables.
+
+It is also the **only** place the calendar's `start_date`/`end_date` window is checked:
+`service_id_for_day` matches on the day flag alone, so `build_datamodel` is not safe on
+unfiltered input.
+
+Monday and Thursday appear in neither list — they are the two days nothing consults,
+which is where the name comes from. **Saturday appears in the first list** even though it
+is also sunday's previous-day flag: the current-day role wins, so Saturday afternoon
+service survives.
+
+On this feed, with `on=2026-09-02`: **18 whole + 5 candidates**, of which **21 trips**
+are actually parsed.
 
 | dropped | why |
 |---|---|
 | `A_0900_EXPIRED` | its service's window closed in 2020 |
 | `A_1100_MON_THU` | `SVC_MON_THU` runs only on the two unconsulted days |
+| `A_2200_TUE` | previous-day candidate, but ends 22:16 — never crosses midnight |
+| `A_1200_FRI` | the same, on the friday branch, so neither flag can be dropped unnoticed |
 
-Window boundaries are inclusive: `20260830` → 0 trips, `20260831` → 22, `20261024` → 22,
-`20261025` → 0.
+Kept as previous-day candidates because they *do* cross midnight: `B_2345_TUE` (24:03),
+`C_2350_TUE` (24:35), `A_2350_FRI` (24:06).
+
+Window boundaries are inclusive: `20260830` → (0, 0), `20260831` → (18, 5),
+`20261024` → (18, 5), `20261025` → (0, 0).
 
 Fixtures follow the production pipeline: `allowed_trips` → `raw_trips`
-(`parse_routes_to_trips(allowed, ...)`), so the timetable counts below are unchanged.
-`unfiltered_trips` skips the filter and exists only to pin what `build_datamodel` does
-with unfiltered input -- **18** weekday trips instead of 17, with `A_0900_EXPIRED`
-present.
+(`parse_routes_to_trips(*allowed_trips, path=...)`), so the timetable counts below are
+unchanged. `unfiltered_trips` passes every trip id and an empty candidate set to bypass
+the filter; it exists only to pin what `build_datamodel` does with unfiltered input —
+**18** weekday trips instead of 17, with `A_0900_EXPIRED` present.
 
-Parsed trips are `(trip_id, ((arr, dep, stop), ...))` -- tuples, not lists -- and stop
-ids are passed through `sys.intern`, so every mention of a stop shares one string object.
+Parsed trips are `(trip_id, ((arr, dep, stop), ...))` — tuples, not lists — and stop ids
+are passed through `sys.intern`, so every mention of a stop shares one string object.
 
 ---
 
-## `network/trips.csv` + `stop_times.csv` — 24 trips, 103 stop_time rows
+## `network/trips.csv` + `stop_times.csv` — 25 trips, 108 stop_time rows
 
 Previous-day trips keep their **original trip_id** (they used to gain a `_prev` suffix).
 That is deliberate: `finalize_timetable` names each route via
@@ -261,8 +280,9 @@ joins through `trips.csv` to give trip_id → short_name, which
 | `L` | `6` | |
 | `W` | *(no row)* | a route_id absent from routes.csv → `Route.short_name == ""` |
 
-Consequences: `routename_to_shortname` → **7** entries; `tripname_to_shortname` → **23**
-of the 24 trips, because its `if route_id in routename_shortname` guard drops `W_0800`;
+Consequences: `routename_to_shortname` → **7** entries; `tripname_to_shortname` → **20** (it is now scoped by `keep` to the loaded trips)
+of the trips it is given, because its `if route_id in routename_shortname` guard drops
+`W_0800`;
 and line W's route ends up unnamed, surfacing in the API as an `{"": ...}` key.
 
 ### `upcoming` — lines catchable within 15 minutes

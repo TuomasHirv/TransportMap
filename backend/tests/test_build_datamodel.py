@@ -364,7 +364,7 @@ class TestNightTrips:
 class TestPreFilteredInput:
     """build_datamodel no longer checks the calendar window itself -- service_id_for_day
     matches on the day flag alone. It relies on all_trips having been filtered at load
-    time by filter_monday_thursday, which is what conftest and the app's lifespan both
+    time by filter_out_monday_thursday, which is what conftest and the app's lifespan both
     do. These tests pin that contract from both sides."""
 
     def test_pre_filtered_input_excludes_the_expired_trip(self, weekday_tt):

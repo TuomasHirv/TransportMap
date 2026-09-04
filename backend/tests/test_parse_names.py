@@ -58,37 +58,62 @@ class TestTripNameToShortName:
 
     def test_every_trip_of_a_line_gets_the_same_name(self, trip_shortnames):
         a_trips = {k: v for k, v in trip_shortnames.items() if k.startswith("A_")}
-        assert len(a_trips) == 11
+        assert len(a_trips) == 8      # the A trips that survive the load-time filter
         assert set(a_trips.values()) == {"1"}
 
     def test_drops_trips_whose_route_is_not_in_routes_csv(self, trip_shortnames):
         """W_0800 is a real trip, but line W has no routes.csv row, so the join skips
         it and its Route ends up with an empty short_name."""
         assert "W_0800" not in trip_shortnames
-        assert len(trip_shortnames) == 23  # 24 trips in the feed, minus W_0800
+        assert len(trip_shortnames) == 20  # the 21 loaded trips, minus W_0800
 
     def test_night_trips_are_included(self, trip_shortnames):
         """Prev-day trips keep their original trip_id precisely so this lookup hits."""
         assert trip_shortnames["C_2350_TUE"] == "3"
         assert trip_shortnames["B_2345_TUE"] == "2"
 
-    def test_an_empty_mapping_drops_everything(self, trips_csv):
-        assert tripname_to_shortname({}, trips_csv) == {}
+    def test_an_empty_mapping_drops_everything(self, trips_csv, every_trip_id):
+        assert tripname_to_shortname({}, every_trip_id, trips_csv) == {}
 
-    def test_unknown_route_ids_in_the_mapping_are_harmless(self, trips_csv):
-        assert tripname_to_shortname({"NOPE": "9"}, trips_csv) == {}
+    def test_unknown_route_ids_in_the_mapping_are_harmless(self, trips_csv, every_trip_id):
+        assert tripname_to_shortname({"NOPE": "9"}, every_trip_id, trips_csv) == {}
+
+
+class TestKeepArgument:
+    """`keep` scopes the mapping to the trips actually loaded, so the lifespan does not
+    hold a name for all 394 635 real trips when it only parsed 58 690 of them."""
+
+    def test_only_kept_trips_appear(self, route_shortnames, trips_csv):
+        got = tripname_to_shortname(route_shortnames, {"A_0800", "B_0810"}, trips_csv)
+        assert got == {"A_0800": "1", "B_0810": "2"}
+
+    def test_an_empty_keep_set_yields_nothing(self, route_shortnames, trips_csv):
+        assert tripname_to_shortname(route_shortnames, set(), trips_csv) == {}
+
+    def test_ids_not_in_the_feed_are_harmless(self, route_shortnames, trips_csv):
+        got = tripname_to_shortname(route_shortnames, {"A_0800", "NOPE"}, trips_csv)
+        assert got == {"A_0800": "1"}
+
+    def test_both_filters_apply(self, route_shortnames, trips_csv):
+        """A trip must be kept AND have a route with a routes.csv row."""
+        got = tripname_to_shortname(route_shortnames, {"A_0800", "W_0800"}, trips_csv)
+        assert got == {"A_0800": "1"}   # W has no routes.csv row
+
+    def test_is_scoped_to_what_was_actually_loaded(self, trip_shortnames, raw_trips):
+        assert set(trip_shortnames) <= {tid for tid, _ in raw_trips}
 
 
 class TestPathArguments:
-    def test_explicit_paths_are_used(self, routes_csv, trips_csv):
+    def test_explicit_paths_are_used(self, routes_csv, trips_csv, every_trip_id):
         names = routename_to_shortname(routes_csv)
-        assert len(tripname_to_shortname(names, trips_csv)) == 23
+        assert len(tripname_to_shortname(names, every_trip_id, trips_csv)) == 24
 
-    def test_falls_back_to_the_module_constants(self, monkeypatch, routes_csv, trips_csv):
+    def test_falls_back_to_the_module_constants(self, monkeypatch, routes_csv, trips_csv,
+                                                every_trip_id):
         """The constants are imported by value, so they must be patched on parse_names
         itself -- patching config.NAMES_PATH would have no effect."""
         monkeypatch.setattr(parse_names, "NAMES_PATH", routes_csv)
         monkeypatch.setattr(parse_names, "TRIPS_PATH", trips_csv)
         names = routename_to_shortname()
         assert len(names) == 7
-        assert len(tripname_to_shortname(names)) == 23
+        assert len(tripname_to_shortname(names, every_trip_id)) == 24

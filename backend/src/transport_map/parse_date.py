@@ -34,9 +34,14 @@ def trips_from_services(service_ids, prev_day_service_ids, path=None):
         return accepted_trips, prev_accepted_trips
 
 def filter_out_monday_thursday(on=None, path=None, trips_path=None):
-    """Trips worth reading from stop_times.csv: those on a service running inside the
-    calendar window on one of the five days the three day types consult. Monday and
-    Thursday are the two that are never needed, hence the name."""
+    """Which trips are worth reading out of stop_times.csv, split two ways.
+
+    Returns (loaded_whole, previous_day_candidates). Services on a current-day flag
+    (wed/sat/sun) are needed in full. Services only on a previous-day flag (tue/fri)
+    matter solely for trips that run past midnight into the day being built, so the
+    caller keeps those only if they cross 24:00. Monday and Thursday appear in neither
+    list -- they are the two days nothing consults, hence the name.
+    """
     filter = ["wednesday",  "saturday", "sunday"]
     prev_filter = ["tuesday", "friday"]
     ymd = (on or date.today()).strftime("%Y%m%d")
@@ -55,5 +60,4 @@ def filter_out_monday_thursday(on=None, path=None, trips_path=None):
                 if r[prev_day].strip() == "1":
                         prev_service_ids.add(r["service_id"].strip())
                         continue
-    filtered_trips, prev_accepted_trips = trips_from_services(service_ids, prev_service_ids, trips_path)
-    return filtered_trips, prev_accepted_trips
+    return trips_from_services(service_ids, prev_service_ids, trips_path)

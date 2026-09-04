@@ -13,6 +13,35 @@ from transport_map import api
 A1 = {"lat": 60.171, "lon": 24.918, "at": 28800, "budget": 1800}
 
 
+class TestImportsCleanly:
+    """Regression: api.py briefly did `import resource` at module scope, a Unix-only
+    stdlib module, so importing the backend raised ModuleNotFoundError on Windows and
+    the whole suite died at collection. CI runs on ubuntu and would not have caught it."""
+
+    def test_the_api_module_imports_on_any_platform(self):
+        import importlib
+
+        assert importlib.import_module("transport_map.api") is api
+
+    def test_no_platform_specific_stdlib_at_module_scope(self):
+        """Checked statically so it fails on Linux CI too, not just where it breaks."""
+        import ast
+        import pathlib
+
+        source = pathlib.Path(api.__file__).read_text(encoding="utf-8")
+        top_level = {
+            alias.name.split(".")[0]
+            for node in ast.parse(source).body
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        } | {
+            node.module.split(".")[0]
+            for node in ast.parse(source).body
+            if isinstance(node, ast.ImportFrom) and node.module and node.level == 0
+        }
+        assert top_level.isdisjoint({"resource", "fcntl", "pwd", "grp", "termios"})
+
+
 class TestStops:
     def test_returns_the_reference_journey(self, api_client):
         assert len(api_client.get("/isochrone", params=A1).json()["stops"]) == 15
