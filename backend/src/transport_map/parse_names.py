@@ -12,10 +12,10 @@ def routename_to_shortname(path=None):
     return returnable
 
 
-def tripname_to_shortname(routename_shortname: dict[str, str], path=None):
+def tripname_to_shortname(routename_shortname: dict[str, str], keep: set, path=None):
     with open(path or TRIPS_PATH, newline="", encoding="utf-8-sig") as fh:
         return {
             r["trip_id"].strip(): routename_shortname[r["route_id"].strip()]
             for r in csv.DictReader(fh)
-            if r["route_id"].strip() in routename_shortname
+            if r["route_id"].strip() in routename_shortname and r["trip_id"].strip() in keep
         }

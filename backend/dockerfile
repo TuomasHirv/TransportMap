@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl unzip ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-dev
+
+ARG FEED_URL="https://api.digitransit.fi/routing-data/v3/hsl/HSL-gtfs.zip"
+ARG DATA_DIR="/app/data"
+
+COPY scripts/trim_feed.py scripts/
+RUN --mount=type=secret,id=digitransit_key,dst=/etc/secrets/digitransit_key \
+    curl -fsSL \
+      -H "digitransit-subscription-key: $(cat /etc/secrets/digitransit_key)" \
+      -o /tmp/gtfs.zip "$FEED_URL" \
+ && unzip -q /tmp/gtfs.zip -d /tmp/gtfs \
+ && python scripts/trim_feed.py /tmp/gtfs "$DATA_DIR" \
+ && rm -rf /tmp/gtfs /tmp/gtfs.zip
+
+COPY . .
+RUN uv sync --frozen --no-dev
+
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/app/.venv/bin:$PATH"
+EXPOSE 8000
+CMD ["uvicorn", "transport_map.api:app", "--host", "0.0.0.0", "--port", "8000"]

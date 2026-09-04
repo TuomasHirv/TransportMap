@@ -15,3 +15,5 @@ __pycache__/
 # Superseded by tests/fixtures/network/
 /fakeStops.csv
 /fakeStopTimes.csv
+
+digitransit_key
