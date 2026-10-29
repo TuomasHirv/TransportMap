@@ -16,6 +16,9 @@ import {
 } from '../app/services/reachable.service';
 import { SettingsService } from '../app/services/settings.service';
 const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
+// The plugin patches the global window.L; in production builds `import * as L` is a
+// copy taken before that, so markerClusterGroup has to be read from the global.
+const LeafletGlobal = (window as unknown as { L: typeof L }).L;
 
 @Component({
   selector: 'app-map',
@@ -33,7 +36,7 @@ const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 export class MapComponent implements AfterViewInit {
   @ViewChild('mapEl') mapEl!: ElementRef<HTMLDivElement>;
   private s = inject(SettingsService);
-  private results = L.markerClusterGroup({
+  private results = LeafletGlobal.markerClusterGroup({
     maxClusterRadius: 35,
     disableClusteringAtZoom: 15,
     showCoverageOnHover: false,
