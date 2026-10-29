@@ -1,0 +1,17 @@
+# Render Blueprint for the backend API.
+# The Digitransit key is NOT declared here: add it in the Render dashboard as a
+# Secret File named `digitransit_key` (Environment -> Secret Files). The Docker
+# build mounts it via RUN --mount=type=secret,id=digitransit_key.
+services:
+  - type: web
+    name: transport-map-api
+    runtime: docker
+    plan: free  # 512 MB; the app peaks around 424 MB. Free instances sleep when idle.
+    region: frankfurt
+    dockerfilePath: ./backend/dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /docs
+    autoDeploy: true
+    buildFilter:
+      paths:
+        - backend/**

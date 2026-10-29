@@ -11,7 +11,7 @@ __pycache__/
 /data/trips.csv
 /data/calendar.csv
 /data/routes.csv
-/data/land.geojson
+# land.geojson is small and not part of the downloaded feed, so it is committed.
 # Superseded by tests/fixtures/network/
 /fakeStops.csv
 /fakeStopTimes.csv
