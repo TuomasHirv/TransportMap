@@ -34,11 +34,11 @@ import { SettingsService } from '../../services/settings.service';
       <input
         type="number"
         min="5"
-        max="120"
+        max="60"
         step="5"
         class="rounded-md border border-slate-300 px-3 py-2 text-base"
         [value]="s.duration() / 60"
-        (change)="s.duration.set(+$any($event.target).value * 60)"
+        (change)="setDuration($any($event.target))"
       />
     </label>
     <label class="flex flex-col gap-1 text-sm font-medium text-slate-700">
@@ -73,6 +73,12 @@ import { SettingsService } from '../../services/settings.service';
 export class Settings {
   s = inject(SettingsService);
   days = ['weekday', 'saturday', 'sunday'] as const;
+  // The max attribute only limits the spinner; typed values have to be clamped here.
+  setDuration(input: HTMLInputElement) {
+    const mins = Math.min(60, Math.max(5, +input.value || 5));
+    input.value = String(mins);
+    this.s.duration.set(mins * 60);
+  }
   lines = computed(() =>
     Object.entries(this.s.upcoming())
       .map(([name, dep]) => ({ name, mins: Math.round((dep - this.s.at()) / 60) }))
