@@ -84,7 +84,8 @@ export class MapComponent implements AfterViewInit {
 
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors',
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.map);
     const pane = this.map.createPane('iso');
     pane.style.pointerEvents = 'none';
