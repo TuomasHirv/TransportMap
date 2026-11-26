@@ -6,6 +6,7 @@ import {
   inject,
   signal,
   effect,
+  DestroyRef,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import * as L from 'leaflet';
@@ -37,6 +38,13 @@ const LeafletGlobal = (window as unknown as { L: typeof L }).L;
   standalone: true,
   template: `<div class="relative h-full">
     <div #mapEl class="map"></div>
+    @if (!origin()) {
+      <div
+        class="pointer-events-none absolute bottom-6 left-1/2 z-1000 -translate-x-1/2 whitespace-nowrap rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-700 shadow"
+      >
+        Tap the map to pick a starting point
+      </div>
+    }
     @if (loading()) {
       <div
         class="absolute top-3 right-3 z-1000 flex items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-700 shadow"
@@ -52,7 +60,7 @@ const LeafletGlobal = (window as unknown as { L: typeof L }).L;
   styles: [
     `
       .map {
-        height: 100vh;
+        height: 100%;
         width: 100%;
       }
     `,
@@ -71,7 +79,8 @@ export class MapComponent implements AfterViewInit {
   private radius = L.layerGroup();
   private isoRenderer!: L.Canvas;
   private originMarker?: L.CircleMarker;
-  private origin = signal<L.LatLng | null>(null);
+  protected origin = signal<L.LatLng | null>(null);
+  private destroyRef = inject(DestroyRef);
 
   private map!: L.Map;
   private api = inject(ReachableService);
@@ -147,6 +156,11 @@ export class MapComponent implements AfterViewInit {
     this.radius.addTo(this.map); // blob first, so dots draw above
     this.results.addTo(this.map);
     this.map.fitBounds(HSL_BOUNDS);
+    // The container changes size when the mobile settings sheet opens/closes or the
+    // phone rotates; Leaflet has to be told so tiles and clicks line up.
+    const ro = new ResizeObserver(() => this.map.invalidateSize());
+    ro.observe(this.mapEl.nativeElement);
+    this.destroyRef.onDestroy(() => ro.disconnect());
     this.map.on('click', (e: L.LeafletMouseEvent) => this.origin.set(e.latlng));
   }
 

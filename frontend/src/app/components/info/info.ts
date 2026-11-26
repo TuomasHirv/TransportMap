@@ -14,7 +14,7 @@ import { Component } from '@angular/core';
 
     <dialog
       #dialog
-      class="m-auto max-w-lg rounded-lg p-6 shadow-xl backdrop:bg-slate-900/50"
+      class="m-auto w-[calc(100%-2rem)] max-w-lg max-h-[85dvh] overflow-y-auto rounded-lg p-6 shadow-xl backdrop:bg-slate-900/50"
       (click)="$event.target === dialog && dialog.close()"
     >
       <div class="flex flex-col gap-4 text-sm text-slate-700">

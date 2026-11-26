@@ -1,9 +1,47 @@
-<div class="h-screen p-12 flex gap-12 bg-[#015985] overflow-hidden">
-  <div class="flex-1 min-w-0 rounded-lg overflow-hidden shadow-lg">
+<div class="h-dvh flex flex-col md:flex-row md:p-12 md:gap-12 bg-[#015985] overflow-hidden">
+  <div class="flex-1 min-h-0 min-w-0 md:rounded-lg overflow-hidden shadow-lg">
     <app-map class="block h-full"></app-map>
   </div>
-  <aside class="w-80 shrink-0 rounded-lg bg-white p-4 overflow-y-auto">
-    <app-settings></app-settings>
-    <div class="mt-6"><app-info></app-info></div>
+  <aside
+    class="shrink-0 flex flex-col max-h-[60dvh] rounded-t-xl md:max-h-none md:w-80 md:rounded-lg bg-white shadow-[0_-4px_12px_rgba(0,0,0,0.15)] md:shadow-none pb-[env(safe-area-inset-bottom)] md:pb-0"
+  >
+    <!-- Mobile only: handle that collapses / expands the settings sheet -->
+    <button
+      type="button"
+      class="md:hidden flex flex-col items-center gap-1.5 px-4 pt-2 pb-3 cursor-pointer"
+      [attr.aria-expanded]="open()"
+      aria-controls="settings-panel"
+      (click)="open.set(!open())"
+    >
+      <span class="h-1 w-10 rounded-full bg-slate-300"></span>
+      <span class="flex w-full items-center justify-between text-sm text-slate-700">
+        <span class="font-medium">Settings</span>
+        <span class="flex items-center gap-2 text-slate-500">
+          <span class="capitalize">{{ summary() }}</span>
+          <svg
+            class="h-4 w-4 transition-transform"
+            [class.rotate-180]="open()"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path
+              fill-rule="evenodd"
+              d="M14.77 12.79a.75.75 0 0 1-1.06-.02L10 8.83l-3.71 3.94a.75.75 0 1 1-1.08-1.04l4.25-4.5a.75.75 0 0 1 1.08 0l4.25 4.5a.75.75 0 0 1-.02 1.06Z"
+              clip-rule="evenodd"
+            />
+          </svg>
+        </span>
+      </span>
+    </button>
+
+    <div
+      id="settings-panel"
+      class="min-h-0 overflow-y-auto px-4 pb-4 md:block md:p-4"
+      [class.hidden]="!open()"
+    >
+      <app-settings></app-settings>
+      <div class="mt-6"><app-info></app-info></div>
+    </div>
   </aside>
 </div>
