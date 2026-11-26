@@ -1,5 +1,6 @@
 import gc
 import logging
+import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -92,6 +93,8 @@ def get_timetable(day: DayType = "weekday") -> Timetable:
 
 Timetabledep = Annotated[Timetable, Depends(get_timetable)]
 
+_query_slots = threading.BoundedSemaphore(3)
+
 
 @app.get("/isochrone")
 def isochrone(tt: Timetabledep, lat: float, lon: float, at: int,
@@ -100,33 +103,44 @@ def isochrone(tt: Timetabledep, lat: float, lon: float, at: int,
         raise HTTPException(422, "at must be seconds after midnight")
     if budget <= 0:
         raise HTTPException(422, "budget must be positive")
-    log.info("isochrone called with max_rounds: %s", max_rounds)
-    result, walkable_stops = reachable(tt, (lat, lon), at, budget, max_rounds)
-    stops = []
-    isochrone_stops = []
-    for s, left, name in result:
-        stops.append(
-            {"stop_name": name, 
-            "lat": tt.coords[s][0], 
-            "lon": tt.coords[s][1],
-            "seconds_left": left, 
-            "arrival": at + budget - left
-            })
-        isochrone_stops.append((
-            tt.coords[s][0],
-            tt.coords[s][1],
-            budget - left
-        ))
-    thresholds = tuple(t for t in (600, 1200, 1800) if t <= budget) or (budget,)
-
-
-    nearby_routes = lines_nearby(tt, walkable_stops, at, at + 900)
-    log.info("nearby_routes: %s", nearby_routes)
-    for key in nearby_routes:
-        log.info("This route %s leaves at %s", key, nearby_routes[key])
-    log.info("Creating geojson")
-    t0 = time.perf_counter()
-    geojson = to_geojson(build_bands(isochrone_stops, Geography, thresholds))
-    log.info("%d stops -> geojson in %.2fs", len(stops), time.perf_counter() - t0)
     
+    # 10 second time out for traffic
+    if not _query_slots.acquire(timeout=10):
+        raise HTTPException(503, "server busy, try again")
+
+    try:
+        # Maximum allowed time is 60
+        if budget > 60 * 60:
+            budget = 60 * 60
+        log.info("isochrone called with max_rounds: %s", max_rounds)
+        result, walkable_stops = reachable(tt, (lat, lon), at, budget, max_rounds)
+        stops = []
+        isochrone_stops = []
+        for s, left, name in result:
+            stops.append(
+                {"stop_name": name, 
+                "lat": tt.coords[s][0], 
+                "lon": tt.coords[s][1],
+                "seconds_left": left, 
+                "arrival": at + budget - left
+                })
+            isochrone_stops.append((
+                tt.coords[s][0],
+                tt.coords[s][1],
+                budget - left
+            ))
+        thresholds = tuple(t for t in (600, 1200, 1800) if t <= budget) or (budget,)
+
+
+        nearby_routes = lines_nearby(tt, walkable_stops, at, at + 900)
+        log.info("nearby_routes: %s", nearby_routes)
+        for key in nearby_routes:
+            log.info("This route %s leaves at %s", key, nearby_routes[key])
+        log.info("Creating geojson")
+        t0 = time.perf_counter()
+        geojson = to_geojson(build_bands(isochrone_stops, Geography, thresholds))
+        log.info("%d stops -> geojson in %.2fs", len(stops), time.perf_counter() - t0)
+    finally:
+        _query_slots.release()
+
     return {"stops": stops, "bands": geojson, "upcoming": nearby_routes}
