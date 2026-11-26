@@ -7,6 +7,7 @@ import {
   signal,
   effect,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import * as L from 'leaflet';
 import 'leaflet.markercluster';
 import {
@@ -15,6 +16,17 @@ import {
   ReachableResponse,
 } from '../app/services/reachable.service';
 import { SettingsService } from '../app/services/settings.service';
+import { asyncScheduler, catchError, EMPTY, map, Subject, switchMap, throttleTime } from 'rxjs';
+
+const QUERY_INTERVAL_MS = 500;
+interface Query {
+  origin: L.LatLng;
+  at: number;
+  budget: number;
+  day: string;
+  transfers: number;
+}
+
 const HSL_BOUNDS = L.latLngBounds([60.08, 24.45], [60.36, 25.3]);
 // The plugin patches the global window.L; in production builds `import * as L` is a
 // copy taken before that, so markerClusterGroup has to be read from the global.
@@ -23,7 +35,20 @@ const LeafletGlobal = (window as unknown as { L: typeof L }).L;
 @Component({
   selector: 'app-map',
   standalone: true,
-  template: `<div #mapEl class="map"></div>`,
+  template: `<div class="relative h-full">
+    <div #mapEl class="map"></div>
+    @if (loading()) {
+      <div
+        class="absolute top-3 right-3 z-1000 flex items-center gap-2 rounded-md bg-white/90 px-3 py-1.5 text-sm font-medium text-slate-700 shadow"
+        role="status"
+      >
+        <span
+          class="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-sky-600"
+        ></span>
+        Calculating…
+      </div>
+    }
+  </div>`,
   styles: [
     `
       .map {
@@ -50,6 +75,10 @@ export class MapComponent implements AfterViewInit {
 
   private map!: L.Map;
   private api = inject(ReachableService);
+  private queries = new Subject<Query>();
+  // Only the newest query clears `loading`; an older response landing while the
+  // newest is still held by the throttle must not hide the indicator.
+  private latest?: Query;
   constructor() {
     effect(() => {
       const origin = this.origin();
@@ -61,14 +90,36 @@ export class MapComponent implements AfterViewInit {
       if (!day) return;
       if (!origin) return;
 
-      this.api.query(origin.lat, origin.lng, at, budget, day, transfers).subscribe({
-        next: (res) => {
-          console.log(res);
-          this.draw(res, origin, budget);
-          this.s.upcoming.set(res.upcoming);
-        },
-      });
+      const q = { origin, at, budget, day, transfers };
+      this.latest = q;
+      this.loading.set(true);
+      this.queries.next(q);
     });
+
+    // At most one request per QUERY_INTERVAL_MS. The first of a burst goes out at once
+    // and the latest is sent when the window ends; switchMap drops superseded responses.
+    this.queries
+      .pipe(
+        throttleTime(QUERY_INTERVAL_MS, asyncScheduler, { leading: true, trailing: true }),
+        switchMap((q) =>
+          this.api.query(q.origin.lat, q.origin.lng, q.at, q.budget, q.day, q.transfers).pipe(
+            map((res) => ({ res, q })),
+            // A failed request must not complete the stream and stop later queries.
+            catchError((err) => {
+              console.error(err);
+              if (q === this.latest) this.loading.set(false);
+              return EMPTY;
+            }),
+          ),
+        ),
+        takeUntilDestroyed(),
+      )
+      .subscribe(({ res, q }) => {
+        console.log(res);
+        this.draw(res, q.origin, q.budget);
+        this.s.upcoming.set(res.upcoming);
+        if (q === this.latest) this.loading.set(false);
+      });
   }
 
   stops = signal<ReachableStop[]>([]);
